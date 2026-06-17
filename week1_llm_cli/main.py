@@ -3,36 +3,58 @@ from rich.panel import Panel
 
 from app.config import load_settings
 from app.history import append_message, load_history, save_history
-from app.http_client import call_echo_api
+from app.llm_client import call_llm
 
 
 console = Console()
 
 def main() -> None:
-    """Day 1 最小验证：读取配置，并把用户输入保存到 JSON 历史"""
     try:
         settings = load_settings()
-        console.print(Panel.fit("配置读取成功",title="Week 1 Day 1"))
 
-        console.print(f"模型：{settings.model}")
-        console.print(f"Base URL：{settings.base_url}")
-        console.print("API Key：已读取，但不会打印明文")
+        console.print(
+            Panel.fit(
+                f"模型配置读取成功\n模型: {settings.model}\n地址: {settings.base_url}",
+                title="配置检查"
+            )
+        )
 
-        user_text=input("请输入一条测试消息：").strip()
-        if not user_text:
-            raise ValueError("测试消息不能为空")
+        user_input = input("请输入您的问题：").strip()
+        if not user_input:
+            raise ValueError("输入不能为空")
         
-        append_message({"role": "user", "content": user_text})
-        api_result = call_echo_api(user_text)
+        # 第一步：先保存用户消息，确保用户输入不会丢
+        append_message(
+            {
+                "role":"user",
+                "content": user_input,
+            }
+        )
+
+        # 第二步：调用大模型，把用户输入变成模型回答
+        assistant_reply = call_llm(
+            settings=settings, 
+            user_text=user_input,
+            temperature=2.1
+        )
+        
+        # 第三步：保存模型回答，形成一轮完整对话
+        append_message(
+            {
+                "role":"assistant",
+                "content": assistant_reply,
+            }
+        )
+
         history = load_history()
-
-        echoed_json = api_result.get("json", {})
-        echoed_message = echoed_json.get("message","")
-
-        console.print(Panel.fit(f"测试 API 返回消息：{echoed_message}\n当前历史记录数：{len(history)}条",title="Week 1 Day 1"))
-
-    except Exception as exc:
-        console.print(Panel.fit(str(exc), title="运行失败", style="red"))
+        console.print(
+            Panel.fit(
+                assistant_reply,
+                title=f"模型回答|当前历史消息数: {len(history)}",
+            )
+        )
+    except (ValueError, Exception, FileNotFoundError) as exc:
+        console.print(f"[red]运行失败: {exc}[/red]")
         raise SystemExit(1) from exc
 
 if __name__ == "__main__":

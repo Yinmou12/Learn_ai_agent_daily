@@ -1,4 +1,28 @@
+
+
 # Week1
+
+## 项目结构
+
+```
+weeik1_llm_cli/
+├── app/
+│   ├── __init__.py
+│   ├── config.py  负责配置
+│   ├── history.py  负责保存对话信息
+│   ├── http_client.py  负责通用HTTP
+│   ├── llm_client.py  负责大模型业务调用
+├── data/
+│   ├── history.json  对话信息存储
+├── .venv  配置
+├── .venv.example
+├── demo_get_params.py
+├── main.py  负责流程
+├── test_env.py
+├── test_http_client.py
+```
+
+
 
 ## Day2
 
@@ -122,3 +146,76 @@ https://httpbin.org/get
 然后调整 timeout_seconds 以排除本地超时设置问题；
 如果仍然失败，再换 GET 接口或稍后重试，判断是不是服务端临时不可用。
 ```
+
+
+
+## Day3
+
+### 内容
+
+大模型 API 调用本质是一次带认证信息的HTTP `POST`  请求，程序需要把用户输入组织成模型能理解的 `messages`，发送给模型服务，再把模型回答解析出来。
+
+容易踩坑的是：不知道 `headers` 放认证、`messages` 放对话、`model` 放模型名；还有就是 API 返回结构较深，容易取错字段。
+
+核心技术拆解：
+
+```
+用户输入
+  -> main.py 负责命令行交互
+  -> history.py 保存用户消息
+  -> llm_client.py 组织 messages 和模型请求
+  -> http_client.py 负责真正发送 HTTP 请求
+  -> llm_client.py 解析模型回复
+  -> history.py 保存 assistant 回复
+  -> main.py 打印结果
+```
+
+今天要新增 `llm_client.py`，它是“业务客户端”，不是简单把请求代码塞进 `main.py`。把“模型请求细节”封装起来，让 `main.py` 只关心“用户问了什么、模型答了什么”。
+
+
+
+### 每日自我验收题
+
+**1.概念解释**
+
+请解释 [[LLM messages 结构]] 中 `system` 和 `user` 两种 `role` 的区别，并说明为什么今天代码里要先放一条 `system` 消息。
+
+- `system` 和 `user` 都是 `messages` 里的消息角色，但职责不同。`system` 表示对模型的全局行为约束。它通常放在最前面，用来告诉模型“你应该以什么身份、什么风格、什么边界来回答”。`user` 表示用户真实输入的问题或指令。
+
+```
+system 负责规定模型怎么回答；
+user 负责提供这一次要回答什么。
+```
+
+
+
+**2.Bug 排查题**
+
+如果运行后报错 `HTTP 状态码错误：401`，请按顺序排查：`.env` 是否加载、`LLM_API_KEY` 是否正确、`Authorization` 是否写成 `Bearer xxx`、当前账号或服务商 Key 是否可用。
+
+- 运行过程并未出现 `401`，但是出现了`503`和`429`
+
+```
+(.venv) PS D:\_Software_Projects\codex\ai_agent_daily_mentor\week1_llm_cli> python main.py
+╭─────────────────────────── 配置检查 ───────────────────────────╮
+│ 模型配置读取成功                                               │
+│ 模型: gemini-3.5-flash                                         │
+│ 地址: https://generativelanguage.googleapis.com/v1beta/openai/ │
+╰────────────────────────────────────────────────────────────────╯
+请输入您的问题：你好啊
+运行失败: HTTP 状态码错误：503，url=https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
+```
+
+更换`.env`中`LM_MODEL="gemini-3-flash-preview"`（模型名可能不正确）为`LLM_MODEL="gemini-3.5-flash"`，仍然是503，大概率是 Gemini 服务临时容量问题。
+
+```
+───────────────── 配置检查 ─────────────────╮
+│ 模型配置读取成功                           │
+│ 模型: glm-5                                │
+│ 地址: https://open.bigmodel.cn/api/paas/v4 │
+╰────────────────────────────────────────────╯
+请输入您的问题：你好
+运行失败: HTTP 状态码错误：429，url=https://open.bigmodel.cn/api/paas/v4/chat/completions
+```
+
+当前账号额度/免费额度耗尽，账号并无模型glm-5额度，更改`LLM_MODEL=glm-5`为`LLM_MODEL=glm-4.7`后解决该问题。

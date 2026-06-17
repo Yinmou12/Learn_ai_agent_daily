@@ -20,7 +20,9 @@ def load_history(path:Path=Path("data") / "history.json") -> list[Message]:
         return []
     
     try:
-        raw_text=path.read_text(encoding="utf-8")
+        raw_text=path.read_text(encoding="utf-8").strip()
+        if not raw_text:
+            return []
         data=json.loads(raw_text)
     except json.JSONDecodeError as exc:
         raise RuntimeError(f"历史文件不是合法 JSON: {path}") from exc

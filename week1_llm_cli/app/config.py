@@ -1,7 +1,11 @@
 from dataclasses import dataclass
 from pathlib import Path
 import os
+
 from dotenv import load_dotenv
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+ENV_PATH = PROJECT_ROOT / ".env"
 
 @dataclass(frozen=True)
 class Settings:
@@ -9,16 +13,30 @@ class Settings:
     base_url:str
     model:str
 
-def load_settings(env_path: Path=Path(".env")) -> Settings:
-    """读取本地环境变量,并返回项目配置"""
-    load_dotenv(env_path)
-
-    api_key = os.getenv("API_KEY")
-    if not api_key:
-        raise RuntimeError("缺少 API_KEY, 请检查 .env 文件是否存在并正确拼写")
+def load_settings() -> Settings:
+    """
+    Read the.env configuration and validate the key fields needed for the big model call
+    """
+    if not ENV_PATH.exists():
+        raise FileNotFoundError(f"env file not found: {ENV_PATH}")
     
-    base_url=os.getenv("BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/").rstrip("/")
+    load_dotenv(ENV_PATH)
 
-    model=os.getenv("MODEL", "gemini-3-flash-preview")
+    api_key = os.getenv("LLM_API_KEY","").strip()
+    base_url = os.getenv("LLM_BASE_URL","").strip()
+    model = os.getenv("LLM_MODEL","").strip()
 
-    return Settings(api_key=api_key, base_url=base_url, model=model)
+    if not api_key:
+        raise ValueError("LLM_API_KEY is not set in the .env file")
+
+    if not base_url:
+        raise ValueError("LLM_BASE_URL is not set in the .env file")
+
+    if not model:
+        raise ValueError("LLM_MODEL is not set in the .env file")
+
+    return Settings(
+        api_key=api_key, 
+        base_url=base_url, 
+        model=model,
+    )
