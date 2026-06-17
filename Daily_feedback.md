@@ -1,0 +1,33 @@
+# Week1
+
+## Day1
+
+今天实际学习时长：3.5h
+
+完成了哪些代码/文件：week1_llm_cli\app\config.py,week1_llm_cli\app\history.py,week1_llm_cli\main.py
+
+哪个概念清晰了：
+
+哪个概念还没懂：无
+
+卡住的 Bug / 报错全文：无
+
+自我验收题完成情况：1. [[环境变量与 API Key]] 属于应该隐藏的信息，直接写在Python中如果进行代码公开的话会导致信息泄露。2.`.env`解决环境变量配置问题；`.gitignore`用来告诉git在进行文件添加和上传时要忽略哪些文件夹或指定后缀的文件，防止把不该公开的代码，数据和个人信息等内容泄露出去
+
+明天希望：正常推进
+
+## Day2
+
+今天实际学习时长：3h
+
+完成了哪些代码/文件：week1_llm_cli\app\http_client.py,week1_llm_cli\demo_get_params.py,week1_llm_cli\test_http_client.py,week1_llm_cli\main.py
+
+哪个概念清晰了：
+
+哪个概念还没懂：无
+
+卡住的 Bug / 报错全文：无
+
+自我验收题完成情况：
+
+明天希望：放慢复习。生成Day3的学习大纲时，要包含核心技术拆解。代码部分：代码能够大致看懂，但是感觉缺少了一些代码注释和代码讲解并且没有一个好的串联方式，并不能学到项目的构建思路。
