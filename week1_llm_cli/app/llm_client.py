@@ -18,7 +18,7 @@ def build_user_message(user_text: str) -> list[Message]:
     return [
         {
             "role": "system",
-            "content": "你是一个严谨的 AI Agent 学习助手,请用中文回答,并尽量解释清楚原因。",
+            "content": "你是一个使用Python编程语言的严谨的 AI Agent 学习助手,请用中文回答,并尽量解释清楚原因。",
         },
         {
             "role": "user",

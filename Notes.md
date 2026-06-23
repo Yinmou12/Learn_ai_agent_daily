@@ -8,6 +8,7 @@
 weeik1_llm_cli/
 ├── app/
 │   ├── __init__.py
+│   ├── async_llm_client.py  职责只做异步大模型调用
 │   ├── config.py  负责配置
 │   ├── history.py  负责保存对话信息
 │   ├── http_client.py  负责通用HTTP
@@ -16,6 +17,7 @@ weeik1_llm_cli/
 │   ├── history.json  对话信息存储
 ├── .venv  配置
 ├── .venv.example
+├── async_demo.py
 ├── demo_get_params.py
 ├── main.py  负责流程
 ├── test_env.py
@@ -25,8 +27,6 @@ weeik1_llm_cli/
 
 
 ## Day2
-
-### 内容
 
 理解 HTTP 请求最小结构。请求的结构：`method -> url -> headers -> body -> response status -> response json`
 
@@ -86,7 +86,7 @@ weeik1_llm_cli/
 
 
 
-### 每日自我验收题
+### 问题
 
 **1.`headers` 和 `json body` 的区别**
 
@@ -151,8 +151,6 @@ https://httpbin.org/get
 
 ## Day3
 
-### 内容
-
 大模型 API 调用本质是一次带认证信息的HTTP `POST`  请求，程序需要把用户输入组织成模型能理解的 `messages`，发送给模型服务，再把模型回答解析出来。
 
 容易踩坑的是：不知道 `headers` 放认证、`messages` 放对话、`model` 放模型名；还有就是 API 返回结构较深，容易取错字段。
@@ -174,7 +172,7 @@ https://httpbin.org/get
 
 
 
-### 每日自我验收题
+### 问题
 
 **1.概念解释**
 
@@ -219,3 +217,113 @@ user 负责提供这一次要回答什么。
 ```
 
 当前账号额度/免费额度耗尽，账号并无模型glm-5额度，更改`LLM_MODEL=glm-5`为`LLM_MODEL=glm-4.7`后解决该问题。
+
+
+
+## Day4
+
+异步编程解决的是“多个网络请求等待时间叠加”的问题。LLM 调用、RAG 检索、Embedding、评分接口都可能很慢，如果全部串行执行，用户会明显等待。因为后续 Agent 工程经常需要同时调用多个工具、多个模型请求或多个检索任务。容易踩坑的是：以为写了 `async def` 就自动并发，但如果没有 `await`、没有 `asyncio.gather()`、底层仍用同步请求，性能不会变好。
+
+核心技术拆解：
+
+```
+同步调用：
+问题 1 -> 等模型返回 -> 问题 2 -> 等模型返回 -> 问题 3 -> 等模型返回
+
+异步并发：
+问题 1 ┐
+问题 2 ├-> 同时发出请求 -> 等最慢的那个返回 -> 汇总结果
+问题 3 ┘
+```
+
+项目链路：
+
+```
+async_demo.py
+  -> 准备多个用户问题
+  -> async_llm_client.py 并发调用模型
+  -> 统计总耗时
+  -> 输出每个问题的回答
+  -> 为 Day5 的 LLM CLI 工具做并发能力准备
+```
+
+把异步逻辑单独放进 `async_llm_client.py`，不要污染 Day3 已经可用的同步 `llm_client.py`。这样做的原因是：同步版本适合单轮 CLI，异步版本适合批量请求、并发评估、多个工具调用。容易踩坑的是没有限制并发数量，导致触发 `429` 限流；或者某一个请求失败后，整个程序报错退出，没有留下可排查信息。
+
+
+
+## Day5
+
+- `main.py`的执行顺序
+
+```
+1.load_seetings() 读取api_key,base_url,model配置
+2.input 接收用户输入并使用append_message保存信息
+3.call_llm() 调用大模型
+	3.1 build_user_message() 构建用户信息
+	3.2 声明 url 和 headers
+	3.3 判断 temperature 范围是否合法
+	3.4 声明请求request_body
+	3.5 request_json() 发送HTTP请求，并把JSON响应解析成字典
+	3.6 parse_assistant_message() 从大模型的JSON回复中获取大模型的文本问答
+4. append_message() 保存模型回答形成对话
+5. load_history() 加载历史对话消息并打印历史消息数
+```
+
+- `main.py`如果直接写HTTP细节会导致文件臃肿，应该把`main.py`当作程序的入口，同时也当作项目的"入口层"，而HTTP细节属于“业务层”，应当与`main.py`中的代码区分开来。
+
+
+
+### 问题
+
+- 概念解释：请解释 [[命令行参数解析]] 的作用。为什么今天要用 `--message`，而不是每次都在代码里手动改问题？
+
+```
+`命令行参数解析`通过指定参数给用户选择，从而可以保护代码。使用`--message`而不是每次在代码里手动改问题同样也有保护代码不泄露同时也避免了反复在代码中修改从而导致代码出错，减少维护压力。
+```
+
+```
+命令行参数解析的作用，是把用户在终端输入的参数转换成程序内部可以使用的变量。
+
+今天使用 `--message`，是为了把“用户输入的问题”和“程序源码”分开。这样每次提问时只需要改命令，不需要改 `main.py`，可以减少误改代码的风险，也方便复用、测试和写 README 使用说明。
+
+例如：
+
+python main.py --message "解释 async def"
+
+这里 `"解释 async def"` 是运行时输入，不属于源码。CLI 工具应该让用户通过参数控制行为，而不是每次打开代码手动修改。
+```
+
+
+
+- 小实现题：给今天的 CLI 增加一个 `--show-history-only` 参数。要求：只打印历史记录，不调用大模型。你需要说明这个参数应该放在流程的哪个位置判断。
+
+```
+这个参数我放在了`args = parser.parse_args()`之后以及`user_message = normalize_message(args.message)`之前，首先需要有一个`parser`对象存在，既然不调用大模型，我认为可以直接省去用户输入信息这一步骤从而减少操作。
+```
+
+```
+
+```
+
+
+
+- Bug 排查题：如果执行 `python main.py --message "你好"` 后报错 `请使用 --message 传入问题`，你会优先检查哪三件事？请结合 [[异常处理]] 和 [[LLM CLI 项目总览]] 回答。
+
+```
+1.首先检查`--message'以及后面的字符串是否有拼写错误。2.检查parser.add_argument()对应的'--message'是否类型指定错误。3.检查函数normalize_message()中是否存在if判断出错。
+```
+
+```
+如果执行 `python main.py --message "你好"` 后仍然报错 `请使用 --message 传入问题`，说明 `normalize_message(args.message)` 收到的是 `None`。
+
+我会优先检查三件事：
+
+1. 检查命令是否真的传对了参数名，例如是不是写成了 `--mesage`、`--Message`，或者引号使用错误。
+
+2. 检查 `build_parser()` 里是否正确注册了参数：
+   `parser.add_argument("-m", "--message", type=str, required=False, ...)`
+   如果参数名写错，`argparse` 就不会把终端输入绑定到 `args.message`。
+
+3. 在 `args = parser.parse_args()` 后临时打印 `args` 或 `args.message`，确认参数解析结果。如果这里已经是 `None`，问题在命令或 parser；如果这里有值，但进入 `normalize_message()` 后变成 None，就检查函数调用时是否传错变量。
+```
+
