@@ -327,3 +327,86 @@ python main.py --message "解释 async def"
 3. 在 `args = parser.parse_args()` 后临时打印 `args` 或 `args.message`，确认参数解析结果。如果这里已经是 `None`，问题在命令或 parser；如果这里有值，但进入 `normalize_message()` 后变成 None，就检查函数调用时是否传错变量。
 ```
 
+
+
+## Day6
+
+```
+# LLM CLI Debug Checklist
+
+## 1. 环境变量问题
+
+现象：
+
+- 提示缺少 `LLM_API_KEY`
+- 提示缺少 `LLM_BASE_URL`
+- 提示缺少 `LLM_MODEL`
+
+排查：
+
+1. 检查 `.env` 是否存在。
+2. 检查变量名是否拼写正确。
+3. 检查变量值是否为空。
+4. 确认 `.env` 没有被错误提交到 Git。
+
+## 2. 命令行参数问题
+
+现象：
+
+- 提示 `message 不能为空`
+- 提示 `请使用 --message 传入问题`
+- `--show-history-only` 仍然要求输入 message
+
+排查：
+
+1. 检查命令是否写成 `--message "你好"`。
+2. 检查 `--show-history-only` 是否在 `normalize_message()` 之前判断。
+3. 检查 `argparse` 是否正确注册参数。
+
+## 3. API 请求失败
+
+现象：
+
+- `401`：API Key 错误或未生效。
+- `429`：请求过多或额度不足。
+- `503`：服务暂时不可用。
+
+排查：
+
+1. 检查 API Key。
+2. 降低请求频率。
+3. 稍后重试。
+4. 使用 `--debug` 查看完整错误。
+
+## 4. 历史记录问题
+
+现象：
+
+- 历史文件为空时报错。
+- `--history-limit -1` 行为异常。
+
+排查：
+
+1. 检查 `load_history()` 是否能处理空文件。
+2. 检查 `history-limit` 是否做了负数校验。
+3. 检查 `data/history.json` 是否是合法 JSON。
+```
+
+
+
+### 问题
+
+- 概念解释：请解释 [[代码重构]] 和“重新写一遍代码”的区别。为什么今天要把 `main.py` 拆薄？
+
+
+
+
+
+- 小实现题：请给今天的代码增加一个 `--debug` 参数。要求：普通模式只显示友好错误；debug 模式遇到未知错误时显示完整 traceback。说明你会把这个判断放在哪个函数里。
+
+
+
+
+
+- Bug 排查题：如果执行 `python main.py --show-history-only --history-limit 5` 时仍然提示 `请使用 --message 传入问题`，说明流程顺序哪里错了？请结合 [[命令行参数解析]] 和 [[异常处理]] 说明排查步骤。
+

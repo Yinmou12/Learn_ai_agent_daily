@@ -2,6 +2,7 @@ from typing import Any
 
 from app.config import Settings
 from app.http_client import request_json
+from app.exceptions import InputValidationError, LLMRequestError
 
 Message = dict[str, str]
 
@@ -12,7 +13,7 @@ def build_user_message(user_text: str) -> list[Message]:
     clean_text = user_text.strip()
 
     if not clean_text:
-        raise ValueError("User input cannot be empty.")
+        raise InputValidationError("User input cannot be empty.")
     
     # The Chat Completions API requires messages to be lists, with each message having at least a role and content
     return [
@@ -33,19 +34,19 @@ def parse_assistant_message(response_data:dict[str,Any]) -> str:
     choices = response_data.get("choices")
 
     if not isinstance(choices, list) or not choices:
-        raise RuntimeError("There are no choices in the model response and the answer cannot be parsed.")
+        raise LLMRequestError("There are no choices in the model response and the answer cannot be parsed.")
     
     first_choice = choices[0]
     if not isinstance(first_choice, dict):
-        raise RuntimeError("The first choice in the model response is not a dictionary structure.")
+        raise LLMRequestError("The first choice in the model response is not a dictionary structure.")
     
     message = first_choice.get("message")
     if not isinstance(message, dict):
-        raise RuntimeError("There is no message field in the model response.")
+        raise LLMRequestError("There is no message field in the model response.")
     
     content = message.get("content")
     if not isinstance(content, str):
-        raise RuntimeError("The model answers empty.")
+        raise LLMRequestError("The model answers empty.")
     
     return content
 

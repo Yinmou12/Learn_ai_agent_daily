@@ -1,4 +1,6 @@
 from typing import Any,Literal
+
+from exceptions import LLMRequestError
 import httpx
 
 HttpMethod=Literal["GET","POST"]
@@ -35,17 +37,18 @@ def request_json(
 
             data = response.json()
     except httpx.TimeoutException as exc:
-        raise RuntimeError(f"请求超时：{clean_url}") from exc
+        raise LLMRequestError(f"请求超时：{clean_url}") from exc
     except httpx.HTTPStatusError as exc:
         status_code = exc.response.status_code
-        raise RuntimeError(f"HTTP 状态码错误：{status_code}，url={clean_url}") from exc
+        response_text = exc.response.text
+        raise LLMRequestError(f"API 返回错误状态码 {status_code}：{response_text}") from exc
     except httpx.RequestError as exc:
-        raise RuntimeError(f"请求发送失败：{clean_url}，原因：{exc}") from exc
+        raise LLMRequestError(f"请求发送失败：{clean_url}，原因：{exc}") from exc
     except ValueError as exc:
-        raise RuntimeError("响应内容不是合法 JSON") from exc
+        raise LLMRequestError("响应内容不是合法 JSON") from exc
     
     if not isinstance(data, dict):
-        raise RuntimeError("响应 JSON 顶层不是字典，暂时不符合本项目处理规则")
+        raise LLMRequestError("响应 JSON 顶层不是字典，暂时不符合本项目处理规则")
 
     return data
 
