@@ -9,6 +9,7 @@ weeik1_llm_cli/
 ├── app/
 │   ├── __init__.py
 │   ├── async_llm_client.py  职责只做异步大模型调用
+│   ├── exceptions.py
 │   ├── config.py  负责配置
 │   ├── history.py  负责保存对话信息
 │   ├── http_client.py  负责通用HTTP
@@ -20,8 +21,12 @@ weeik1_llm_cli/
 ├── async_demo.py
 ├── demo_get_params.py
 ├── main.py  负责流程
+├── test_cli.py
+├── test_config.py
 ├── test_env.py
+├── test_history.py
 ├── test_http_client.py
+├── test_llm_client.py
 ```
 
 
@@ -409,4 +414,99 @@ python main.py --message "解释 async def"
 
 
 - Bug 排查题：如果执行 `python main.py --show-history-only --history-limit 5` 时仍然提示 `请使用 --message 传入问题`，说明流程顺序哪里错了？请结合 [[命令行参数解析]] 和 [[异常处理]] 说明排查步骤。
+
+
+
+
+
+# Week2
+
+```
+weeik1_llm_cli/
+├── app/
+│   ├── __init__.py
+│   ├── schemas.py			定义请求和响应的数据结构
+│   ├── main.py				定义接口路由
+
+README.md
+```
+
+
+
+## Day8
+
+###### [[FastAPI 项目结构]]：从 CLI 工具进入后端服务
+
+目标从 `LLM CLI 调用工具` 过渡到 `Agent 后端服务骨架`。CLI 是“用户在终端输入命令”，后端服务是“别人通过 HTTP 请求调用你的程序”。后面做 `AI-Interview` 时，前端页面、测试工具、其他服务都不会直接运行你的 `main.py`，而是通过接口访问你的后端。
+
+`FastAPI` 是一个 Python Web 框架。你可以先把它理解成：它负责接收 HTTP 请求，把请求交给 Python 函数处理，再把函数返回值变成 HTTP 响应。
+
+###### [[FastAPI 路由]] + [[Pydantic 数据校验]]：让接口输入输出有结构
+
+`Pydantic` 是数据校验工具。它可以规定请求体里必须有什么字段、字段是什么类型。例如 `message` 必须是字符串，不能是空内容。
+
+**LLM 应用很容易收到混乱输入。没有数据校验，你的业务代码里会到处写 `if message is None`。有了 Pydantic，接口入口就能先挡掉不合法数据。**
+
+**查询状态用 `GET`，提交一段用户消息让后端处理，用 `POST`。**
+
+
+
+## Day9
+
+###### Pydantic 数据校验
+
+`Pydantic` 的作用是：在请求进入业务函数之前，先检查数据结构、字段类型、长度限制和格式规则。
+
+你可以把它理解成“接口门卫”。比如用户调用 `/api/v1/chat` 时传：
+
+```
+{
+  "message": ""
+}
+```
+
+后端不应该把空内容交给大模型，而应该在入口处直接拦截。LLM 接口很容易收到空消息、超长消息、缺字段、字段类型错误。如果没有校验，业务代码会堆满 `if` 判断，而且错误返回不统一。容易踩的坑是：以为 `message: str` 就足够了。实际上，`str` 只能保证“它是字符串”，不能保证“它不是空字符串”“它没有超长”“它符合业务规则”。
+
+###### 统一响应格式 + FastAPI 422 错误
+
+统一响应格式是指：接口成功时返回固定结构，失败时也返回固定结构。比如成功返回：
+
+```
+{
+  "success": true,
+  "data": {...},
+  "error": null
+}
+```
+
+失败返回：
+
+```
+{
+  "success": false,
+  "data": null,
+  "error": {
+    "code": "INVALID_MESSAGE",
+    "message": "message 不能为空"
+  }
+}
+```
+
+前端或调用方不应该猜测接口返回结构。后续做 `AI-Interview` 时，简历解析、岗位匹配、RAG 出题、AI 评分都会有成功和失败情况，统一响应能让前后端协作更稳定。容易踩的坑是：有的接口返回字符串，有的返回字典，有的直接抛异常，导致调用方不好处理。今天要把 `/health`、`/api/v1/version`、`/api/v1/chat` 都收敛到相对统一的响应结构。
+
+###### 具体任务
+
+- 新增三个更通用的模型：`ErrorDetail` `ApiResponse` `VersionResponse`
+
+- 理解 `Field()` 的常见参数： `min_length` `max_length` `description` `examples`
+
+- 理解 `field_validator` 的作用：处理“类型正确但业务不合法”的数据，比如 `"   "`
+
+
+
+
+
+
+
+
 

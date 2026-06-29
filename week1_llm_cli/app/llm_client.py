@@ -48,6 +48,10 @@ def parse_assistant_message(response_data:dict[str,Any]) -> str:
     if not isinstance(content, str):
         raise LLMRequestError("The model answers empty.")
     
+    content = content.strip()
+    if not content:
+        raise LLMRequestError("The model answers empty.")
+    
     return content
 
 def call_llm(

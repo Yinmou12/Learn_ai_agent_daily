@@ -1,6 +1,6 @@
 from typing import Any,Literal
 
-from exceptions import LLMRequestError
+from app.exceptions import LLMRequestError
 import httpx
 
 HttpMethod=Literal["GET","POST"]

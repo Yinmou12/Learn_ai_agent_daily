@@ -4,7 +4,7 @@ import os
 
 from dotenv import load_dotenv
 
-from exceptions import ConfigError
+from app.exceptions import ConfigError
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 ENV_PATH = PROJECT_ROOT / ".env"
