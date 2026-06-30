@@ -421,15 +421,7 @@ python main.py --message "解释 async def"
 
 # Week2
 
-```
-weeik1_llm_cli/
-├── app/
-│   ├── __init__.py
-│   ├── schemas.py			定义请求和响应的数据结构
-│   ├── main.py				定义接口路由
 
-README.md
-```
 
 
 
@@ -502,11 +494,253 @@ README.md
 
 - 理解 `field_validator` 的作用：处理“类型正确但业务不合法”的数据，比如 `"   "`
 
+###### 编码思路
+
+先把接口边界做稳定：
+
+1. `schemas.py` 负责定义“请求和响应长什么样”。
+2. `main.py` 负责定义“哪个 URL 调哪个函数”。
+3. `generate_fake_answer()` 负责临时生成假回答。
+4. 明天只需要把 `generate_fake_answer()` 替换成真实 LLM 调用，接口输入输出不用大改。
+
+这里重点解释两个概念：
+
+- `BaseModel`：用 Python 类描述 JSON 数据结构。
+- `field_validator`：在字段类型检查之后，再做业务规则检查。
 
 
 
+##### 验收题
+
+###### 1
+
+**请解释 [[Pydantic 数据校验]] 在 FastAPI 请求流程中的作用。为什么 `message: str` 只能保证类型，不能保证内容有业务意义？**
+
+```
+HTTP 请求进入 FastAPI
+-> FastAPI 根据路由找到对应函数
+-> 读取请求体 JSON
+-> 用 Pydantic 模型校验请求体
+-> 校验通过，才执行你的路由函数
+-> 路由函数返回响应
+```
+
+为什么 `message: str` 只能保证类型
+
+下面这些都是字符串：
+
+```
+"你好"
+"   "
+"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa..."
+"随便乱输入"
+```
+
+它们的类型都是 `str`。所以只写：`message: str`只能说明：message 是字符串。不能说明：
+
+```
+message 不是空格。
+message 长度合理。
+message 是一个真实问题。
+message 没有超过接口限制。
+```
+
+这就是“类型校验”和“业务校验”的区别。
+
+可以这样分：
+
+```
+类型校验：这个值是什么类型？
+业务校验：这个值在当前业务场景下有没有意义？
+```
+
+###### 2
+
+**`field_validator` 不生效怎么排查**
+
+第 1 层：路由函数有没有真的使用这个 Pydantic 模型
+
+必须是这样：
+
+```
+@app.post("/api/v1/chat")
+def chat(request: ChatRequest) -> ApiResponse:
+    ...
+```
+
+如果你写成：
+
+```
+@app.post("/api/v1/chat")
+def chat(request: dict) -> ApiResponse:
+    ...
+```
+
+或者：
+
+```
+@app.post("/api/v1/chat")
+def chat(message: str) -> ApiResponse:
+    ...
+```
+
+那 `ChatRequest` 根本没参与校验，你写在 `ChatRequest` 里的 `field_validator` 自然不会执行。所以第一件事检查：
+
+```
+chat() 函数的参数类型是不是 ChatRequest？
+```
+
+第 2 层：`field_validator` 的字段名有没有写对
+
+如果模型是：
+
+```
+class ChatRequest(BaseModel):
+    message: str
+```
+
+校验器必须写：
+
+```
+@field_validator("message")
+```
+
+不能写成：
+
+```
+@field_validator("messages")
+@field_validator("content")
+```
+
+字段名必须和模型字段完全一致。
+
+所以第二件事检查：
+
+```
+@field_validator("message") 里的字段名，是否和 message 字段一致？
+```
+
+第 3 层：校验函数有没有返回清洗后的值
+
+正确写法：
+
+```
+@field_validator("message")
+@classmethod
+def validate_message_not_blank(cls, value: str) -> str:
+    message = value.strip()
+
+    if not message:
+        raise ValueError("message 不能为空")
+
+    return message
+```
+
+这里有两个关键点：
+
+1. 空格要先 `strip()`。
+2. 最后要 `return message`。
+
+**更好的排查答案：**
+
+```
+如果 `@field_validator("message")` 写了，但传入 `"   "` 没有报错，我会检查三件事：
+
+1. 路由函数是否真的使用了 `ChatRequest`，例如 `def chat(request: ChatRequest)`。如果写成 `dict` 或普通字符串，Pydantic 模型不会参与校验。
+
+2. `field_validator` 里的字段名是否写对。模型字段叫 `message`，就必须写 `@field_validator("message")`，不能写成 `messages` 或其他名字。
+
+3. 校验逻辑是否对空格字符串做了 `strip()`。`"   "` 本身是字符串，而且长度大于 0，所以必须先 `value.strip()`，再判断是否为空，并且最后要返回清洗后的 `message`。
+```
+
+补充一个很实用的调试方法：
+你可以临时在 validator 里加一行打印：
+
+```
+print("validator 执行了，value =", repr(value))
+```
+
+然后重新请求接口。
+如果终端没有打印，说明校验器根本没执行，优先查第 1 和第 2 点。
+如果打印了但没报错，说明校验逻辑写错，查第 3 点。
 
 
 
+## Day10
+
+##### 验收题
+
+###### 1
+
+概念解释：请解释 [[LLMClient 封装]] 的作用。为什么不建议在 `app/main.py` 的路由函数里直接写 `httpx.post()`？
+
+```text
+LLMClient 封装是把“调用大模型 API 的细节”集中放到客户端层，比如构造 URL、headers、payload、发送 httpx 请求、处理超时和状态码、解析响应。
+```
 
 
+
+###### 2
+
+小实现题：请给 `ChatRequest` 增加 `use_fake: bool = False`。当 `use_fake` 为 `True` 时调用 `generate_fake_answer()`，否则调用 `generate_llm_answer()`。说明这个判断应该放在 `main.py` 还是 `chat_service.py`，为什么。
+
+```text
+路由函数会变重
+main.py 既要处理请求响应，又要处理 API Key、URL、headers、timeout、状态码、JSON 解析，后续难维护。
+
+复用困难
+后面简历解析、岗位匹配、面试评分都可能调用 LLM。如果 LLM 请求逻辑写在某个路由函数里，其他地方复用不了。
+
+测试困难
+路由测试会被真实网络影响。把 LLM 调用封装到 llm_client.py 后，可以单独测试 parse_assistant_message()，也可以用 mock 模拟 HTTP 请求。
+```
+
+```text
+`use_fake` 的判断更适合放在 `chat_service.py`，因为它属于聊天业务策略：当前请求到底走假回答还是真实 LLM。`main.py` 是路由层，只应该接收请求、调用服务层、返回响应。
+
+判断必须发生在调用模型之前。如果先同时调用 `generate_fake_answer()` 和 `generate_llm_answer()`，再根据 `use_fake` 选择结果，就会导致即使使用假回答，也仍然消耗真实 LLM 请求。
+```
+
+
+
+###### 3
+
+Bug 排查题：如果调用 `/api/v1/chat` 返回 `ConfigError: 缺少环境变量：LLM_API_KEY`，你会按什么顺序检查？请结合 [[环境变量与 API Key]]、[[FastAPI 项目结构]] 和 [[异常处理]] 回答。
+
+```text
+如果返回 `ConfigError: 缺少环境变量：LLM_API_KEY`，我会按以下顺序检查：
+
+1. 检查 `.env` 是否放在当前 FastAPI 项目根目录 `week2_agent_api/` 下，并确认我是从这个目录启动 `uvicorn app.main:app --reload`。
+
+2. 检查 `.env` 中变量名是否完全正确，应该是 `LLM_API_KEY`，不能写成 `LLM_API_KEEY` 或其他名字。
+
+3. 检查 `LLM_API_KEY` 的值是否为空。如果写成 `LLM_API_KEY=` 或只有空格，`load_settings()` 中 `.strip()` 后仍然会被判断为缺失。
+
+4. 检查 `app/config.py` 中 `os.getenv("LLM_API_KEY", "")` 是否拼写正确。
+
+5. 修改 `.env` 后重启 uvicorn，确保服务重新读取配置。
+```
+
+
+
+## Day 11
+
+###### [[FastAPI 路由]] 模块化
+
+用 `APIRouter` 拆掉臃肿的 `main.py`。`APIRouter` 可以理解成“小型 FastAPI 路由容器”。它解决的问题是：当接口越来越多时，如果所有 `@app.get()`、`@app.post()` 都写在 `main.py`，入口文件会重新变臃肿。
+
+后续 `AI-Interview` 会有很多接口，例如简历解析、岗位匹配、面试题生成、评分报告。如果不提前拆路由，项目会很快变乱。
+
+容易踩的坑是：分不清 `app = FastAPI()` 和 `router = APIRouter()`。简单记住：`FastAPI()` 是整个应用；`APIRouter()` 是某一组接口；最后用 `app.include_router()` 把路由组注册到应用里。
+
+###### [[异常处理]] 全局化
+
+不要每个路由都重复 `try/except`
+
+
+
+# -
+
+每日自我验收题探讨，我有一些自己的想法，但是还需要你帮我进行更深入的解析
+
+1.LLMClient封装将原先`main.py`拆分为路由层，客户端层，再加上已经封装好的客户端层，将整个业务划分清晰。为什么不建议在 `app/main.py` 的路由函数里直接写 `httpx.post()`？httpx.post属于客户端层的任务，不应该写在路由层。2.我在`chat_service.py`中添加了变量`USE_FAKE: bool = False`，具体调用`generate_fake_answer()`还是`generate_llm_answer()`的判断应该在`main.py->chat()`中，该判断要在调用模型之前而不是调用了得到了两个回复后再根据`USE_FAKE`去判断保留哪个。3.我会先检查`.env`中有无`LLM_API_KEEY`配置且检查api key是否正确；然后检查`load_settings()`函数里是否存在拼写错误；最后检查函数`call_llm()`中的异常检查是否编写错误。

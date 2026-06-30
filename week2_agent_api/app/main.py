@@ -1,14 +1,26 @@
-from fastapi import FastAPI, HTTPException
-from app.schemas import ChatRequest, ChatResponse, HealthResponse
+from fastapi import FastAPI
 
-app=FastAPI(
+from app.exceptions import AppError
+from app.schemas import (
+    ErrorDetail,
+    ApiResponse,
+    HealthResponse,
+    VersionData,
+    ChatRequest,
+    ChatResponse,
+)
+from app.services.chat_service import generate_chat_answer
+from app.utils.response import make_success_response, make_error_response
+
+app = FastAPI(
     title="Agent Backend API",
     description="Week2 最小 Agent 后端服务骨架",
-    version="0.1.0",
+    version="0.2.0",
 )
 
-@app.get("/health", response_model=HealthResponse)
-def health_check() -> HealthResponse:
+
+@app.get("/health", response_model=ApiResponse)
+def health_check() -> ApiResponse:
     """
     健康检查接口
 
@@ -16,43 +28,60 @@ def health_check() -> HealthResponse:
     一般不会写复杂业务逻辑，只返回服务状态。
     """
 
-    return HealthResponse(status="ok", service="agent-backend-api")
+    data = HealthResponse(status="ok", service="agent-backend-api")
+    return make_success_response(data)
 
 
-def generate_fake_answer(message: str)->str:
-    # 虽然 Pydantic 已经限制了 min_length=1,
-    # 但用户可能传入 "   " 这种全空字符串，所以这里再做一次业务校验。
-    if not message:
-        raise HTTPException(
-            status_code=400,
-            detail="message 不能为空"
-        )
+@app.get("/api/v1/version", response_model=ApiResponse)
+def get_version() -> ApiResponse:
+    """查询服务版本号。"""
 
-    return f"我收到了你的问题: {message}"
+    data = VersionData(version=app.version)
+    return make_success_response(data)
 
 
-@app.post("/api/v1/chat", response_model=ChatResponse)
-def chat(request: ChatRequest) -> ChatResponse:
+@app.post("/api/v1/chat", response_model=ApiResponse)
+def chat(request: ChatRequest) -> ApiResponse:
     """
     聊天接口
 
-    request 是 FastAPI 根据请求体自动创建出来的对象。
-    如果请求不符合 ChatRequest 的要求，FastAPI 会自动返回 422 错误。
+    路由函数只做三件事：
+    1. 接收已经通过 Pydantic 校验的 request。
+    2. 调用服务层生成 answer。
+    3. 返回统一响应。
     """
 
-    user_message = request.message.strip()
+    try:
+        answer, model_name = generate_chat_answer(request.message, request.use_fake)
 
-    # 今天先返回模拟回复，目的是先打通 HTTP 接口流程。
-    # 明天可以把这行替换成真实的大模型调用。
-    fake_answer=generate_fake_answer(user_message)
+        data = ChatResponse(
+            message=request.message,
+            answer=answer,
+            model=model_name,
+        )
+        return make_success_response(data)
+    except AppError as error:
+        return make_error_response(code=error.__class__.__name__, message=str(error))
 
-    return ChatResponse(
-        message=user_message,
-        answer=fake_answer,
-        model="fake-llm"
-    )
 
+@app.post("/api/v1/chat/debug", response_model=ApiResponse)
+def chat_debug(request: ChatRequest) -> ApiResponse:
+    """
+    聊天接口测试
 
-@app.get("/api/v1/version")
-def get_version() -> dict:
-    return {"version": app.version}
+    返回用户输入的长度和清洗后的内容
+    """
+    try:
+        message_length = len(request.message)
+        cleaned_message = request.message.strip()  # 简单清洗示例
+
+        data = {
+            "original_message": request.message,
+            "message_length": message_length,
+            "cleaned_message": cleaned_message,
+            "cleaned_message_length": len(cleaned_message),
+        }
+
+        return make_success_response(data)
+    except AppError as error:
+        return make_error_response(code=error.__class__.__name__, message=str(error))
