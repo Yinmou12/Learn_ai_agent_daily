@@ -427,19 +427,64 @@ python main.py --message "解释 async def"
 
 ## Day8
 
-###### [[FastAPI 项目结构]]：从 CLI 工具进入后端服务
+###### [[FastAPI 项目结构]]
+
+从 CLI 工具进入后端服务
 
 目标从 `LLM CLI 调用工具` 过渡到 `Agent 后端服务骨架`。CLI 是“用户在终端输入命令”，后端服务是“别人通过 HTTP 请求调用你的程序”。后面做 `AI-Interview` 时，前端页面、测试工具、其他服务都不会直接运行你的 `main.py`，而是通过接口访问你的后端。
 
 `FastAPI` 是一个 Python Web 框架。你可以先把它理解成：它负责接收 HTTP 请求，把请求交给 Python 函数处理，再把函数返回值变成 HTTP 响应。
 
-###### [[FastAPI 路由]] + [[Pydantic 数据校验]]：让接口输入输出有结构
+###### [[FastAPI 路由]] + [[Pydantic 数据校验]]
+
+让接口输入输出有结构
 
 `Pydantic` 是数据校验工具。它可以规定请求体里必须有什么字段、字段是什么类型。例如 `message` 必须是字符串，不能是空内容。
 
 **LLM 应用很容易收到混乱输入。没有数据校验，你的业务代码里会到处写 `if message is None`。有了 Pydantic，接口入口就能先挡掉不合法数据。**
 
 **查询状态用 `GET`，提交一段用户消息让后端处理，用 `POST`。**
+
+
+
+--reload 表示开发模式下自动重载：修改代码后，服务会自动重启。
+
+```text
+uvicorn app.main:app --reload	
+INFO:     Will watch for changes in these directories: ['D:...\\week2_agent_api']	uvicorn会监听显示目录下的文件变化
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)	服务已经运行在http://127.0.0.1:8000
+INFO:     Started reloader process [22356] using StatReload		因为使用了--reload，所以uvicorn会额外启动一个重载进程
+INFO:     Started server process [19600]	表示真正处理 HTTP 请求的服务进程启动了
+INFO:     Waiting for application startup.	表示 FastAPI 正在执行启动流程。如果你代码里有启动事件，比如连接数据库、初始化资源，会在这里执行。
+INFO:     Application startup complete.		表示应用启动完成，可以正常接收请求。
+INFO:     127.0.0.1:2791 - "GET / HTTP/1.1" 404 Not Found	访问了根路径 '/' 目前没有定义接口 '/'
+INFO:     127.0.0.1:2791 - "GET /favicon.ico HTTP/1.1" 404 Not Found	浏览器自动请求网站图标：/favicon.ico
+INFO:     127.0.0.1:59478 - "GET / HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:59478 - "GET /favicon.ico HTTP/1.1" 404 Not Found 
+INFO:     127.0.0.1:33247 - "GET /docs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:12073 - "GET /openapi.json HTTP/1.1" 200 OK
+```
+
+**总结一下**
+
+```text
+服务启动成功：是
+/docs 可访问：是
+/ 返回 404：因为你没写根路由
+/favicon.ico 返回 404：浏览器自动请求图标，可以忽略
+```
+
+你现在应该优先访问：
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+而不是：
+
+```text
+http://127.0.0.1:8000/
+```
 
 
 
@@ -737,10 +782,26 @@ Bug 排查题：如果调用 `/api/v1/chat` 返回 `ConfigError: 缺少环境变
 
 不要每个路由都重复 `try/except`
 
+现在的路由函数里可能有：
 
+```
+try:
+    ...
+except AppError as error:
+    return make_error_response(...)
+```
+
+今天要把这类重复逻辑迁移到全局异常处理器中。全局异常处理器的作用是：只要代码里抛出指定异常，FastAPI 自动用统一格式返回错误。大模型服务会出现配置错误、请求超时、状态码错误、解析错误。如果每个路由都自己写一遍 `try/except`，重复多，容易漏，错误格式也容易不一致。
+
+容易踩的坑是：把所有异常都吞掉。今天只处理你定义过的 `AppError`，未知异常仍然交给 FastAPI 变成 `500`，方便后续 Debug。
 
 # -
 
 每日自我验收题探讨，我有一些自己的想法，但是还需要你帮我进行更深入的解析
 
 1.LLMClient封装将原先`main.py`拆分为路由层，客户端层，再加上已经封装好的客户端层，将整个业务划分清晰。为什么不建议在 `app/main.py` 的路由函数里直接写 `httpx.post()`？httpx.post属于客户端层的任务，不应该写在路由层。2.我在`chat_service.py`中添加了变量`USE_FAKE: bool = False`，具体调用`generate_fake_answer()`还是`generate_llm_answer()`的判断应该在`main.py->chat()`中，该判断要在调用模型之前而不是调用了得到了两个回复后再根据`USE_FAKE`去判断保留哪个。3.我会先检查`.env`中有无`LLM_API_KEEY`配置且检查api key是否正确；然后检查`load_settings()`函数里是否存在拼写错误；最后检查函数`call_llm()`中的异常检查是否编写错误。
+
+
+
+
+

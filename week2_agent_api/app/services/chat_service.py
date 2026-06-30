@@ -12,7 +12,7 @@ def generate_chat_answer(message: str, use_fake: bool = False) -> tuple[str, str
     """
 
     if use_fake:
-        answer = generate_fake_answer(message), "fake-llm"
+        return generate_fake_answer(message), "fake-llm"
 
     return generate_llm_answer(message), "real-llm"
 

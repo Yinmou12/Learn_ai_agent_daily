@@ -65,7 +65,10 @@ class ChatRequest(BaseModel):
         examples=["用三句话解释 FastAPI 路由是什么"],
     )
 
-    use_fake: bool = False
+    use_fake: bool = Field(
+        default=False,
+        description="是否使用假回答，True 表示不调用真实大模型",
+    )
 
     # 先检查 message 的类型、长度等基础规则
     @field_validator("message")
@@ -96,3 +99,11 @@ class ChatResponse(BaseModel):
     message: str = Field(description="用户问题")
     answer: str = Field(description="后端生成的回答")
     model: str = Field(description="当前使用的模型名称")
+
+
+class DebugPing(BaseModel):
+    """
+    debug ping 接口返回的数据内容
+    """
+
+    message: str = Field(description="调试接口返回消息")
