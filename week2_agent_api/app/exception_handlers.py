@@ -1,7 +1,7 @@
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
-from app.exceptions import AppError
+from app.exceptions import AppError, AuthError
 from app.utils.response import make_error_response
 
 
@@ -22,3 +22,9 @@ async def app_error_handler(request: Request, error: AppError) -> JSONResponse:
         status_code=400,
         content=response.model_dump(),
     )
+
+
+async def auth_error_handler(request: Request, error: AuthError) -> JSONResponse:
+    response = make_error_response(code=error.__class__.__name__, message=str(error))
+
+    return JSONResponse(status_code=401, content=response.model_dump())

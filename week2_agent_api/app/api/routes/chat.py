@@ -1,6 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
-from app.schemas import ApiResponse, ChatResponse, ChatRequest
+from app.dependencies.auth import get_current_user
+from app.schemas import ApiResponse, ChatResponse, ChatRequest, UserProfile
 from app.services.chat_service import generate_chat_answer
 from app.utils.response import make_success_response
 
@@ -8,7 +9,9 @@ router = APIRouter(prefix="/api/v1", tags=["chat"])
 
 
 @router.post("/chat", response_model=ApiResponse)
-def chat(request: ChatRequest) -> ApiResponse:
+def chat(
+    request: ChatRequest, current_user: UserProfile = Depends(get_current_user)
+) -> ApiResponse:
     """
     聊天接口。
 

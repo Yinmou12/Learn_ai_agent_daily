@@ -8,3 +8,7 @@ class ConfigError(AppError):
 
 class LLMRequestError(AppError):
     """大模型请求失败。"""
+
+
+class AuthError(AppError):
+    """认证失败。例如用户名密码错误或 token 无效。"""

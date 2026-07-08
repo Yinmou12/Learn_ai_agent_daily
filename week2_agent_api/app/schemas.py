@@ -107,3 +107,30 @@ class DebugPing(BaseModel):
     """
 
     message: str = Field(description="调试接口返回消息")
+
+
+class LoginRequest(BaseModel):
+    """
+    登录请求体。
+    """
+
+    username: str = Field(min_length=1, description="用户名")
+    password: str = Field(min_length=1, description="密码")
+
+
+class TokenData(BaseModel):
+    """
+    登陆成功后返回的数据。
+    """
+
+    access_token: str = Field(description="JWT token")
+    token_type: str = Field(default="bearer", description="token 类型")
+
+
+class UserProfile(BaseModel):
+    """
+    当前登录用户信息
+    """
+
+    username: str = Field(description="用户名")
+    display_name: str = Field(description="展示名称")

@@ -795,11 +795,15 @@ except AppError as error:
 
 容易踩的坑是：把所有异常都吞掉。今天只处理你定义过的 `AppError`，未知异常仍然交给 FastAPI 变成 `500`，方便后续 Debug。
 
+
+
+## Day 12
+
 # -
 
 每日自我验收题探讨，我有一些自己的想法，但是还需要你帮我进行更深入的解析
 
-1.LLMClient封装将原先`main.py`拆分为路由层，客户端层，再加上已经封装好的客户端层，将整个业务划分清晰。为什么不建议在 `app/main.py` 的路由函数里直接写 `httpx.post()`？httpx.post属于客户端层的任务，不应该写在路由层。2.我在`chat_service.py`中添加了变量`USE_FAKE: bool = False`，具体调用`generate_fake_answer()`还是`generate_llm_answer()`的判断应该在`main.py->chat()`中，该判断要在调用模型之前而不是调用了得到了两个回复后再根据`USE_FAKE`去判断保留哪个。3.我会先检查`.env`中有无`LLM_API_KEEY`配置且检查api key是否正确；然后检查`load_settings()`函数里是否存在拼写错误；最后检查函数`call_llm()`中的异常检查是否编写错误。
+
 
 
 

@@ -50,30 +50,45 @@ week2_agent_api/
 ```
 week2_agent_api/
 ├── app/
-│   ├── __init__.py
-│   ├── main.py                    # FastAPI 应用创建、路由注册、异常处理注册
-│   ├── config.py                  # 环境变量读取与配置对象
-│   ├── exceptions.py              # 自定义业务异常
-│   ├── exception_handlers.py      # 全局异常处理器
-│   ├── schemas.py                 # Pydantic 请求/响应模型
 │   ├── api/
 │   │   ├── __init__.py
 │   │   └── routes/
 │   │       ├── __init__.py
+│   │       ├── auth.py				# 登录接口和当前用户接口
 │   │       ├── health.py           # 健康检查接口
 │   │       ├── version.py          # 版本查询接口
 │   │       ├── chat.py             # 聊天接口
 │   │       └── debug.py            # 调试接口，可选
-│   ├── services/
-│   │   ├── __init__.py
-│   │   └── chat_service.py         # 聊天业务逻辑
 │   ├── clients/
 │   │   ├── __init__.py
 │   │   └── llm_client.py           # 外部大模型 API 调用封装
+│   ├── dependencies
+│   │   ├── __init__.py
+│   │   ├── auth.py					# 从请求头中取 token，并得到当前用户
+│   ├── security/
+│   │   ├── __init__.py
+│   │   ├── jwt.py					# 创建和解析 token
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── auth_serivice.py		# 验证用户名密码
+│   │   └── chat_service.py         # 聊天业务逻辑
+│   │   └── password.py				# 明文密码改为哈希密码
 │   └── utils/
 │       ├── __init__.py
 │       └── response.py             # 统一响应构造函数
+│   └── tests/
+│       ├── __init__.py
+│       ├── test_auth.py			# 测试登录接口
+│       ├── test_chat_mock.py
+│       ├── test_route.py
+│   ├── __init__.py
+│   ├── config.py                  	# 环境变量读取与配置对象
+│   ├── exception_handlers.py      	# 全局异常处理器
+│   ├── exceptions.py              	# 自定义业务异常
+│   ├── main.py                   	# FastAPI 应用创建、路由注册、异常处理注册
+│   ├── schemas.py                 	# Pydantic 请求/响应模型
 ├── .env                            # 本地环境变量，不提交 Git
+├── .env.example					# 环境变量示例，可提交 Git
 ├── requirements.txt                # 项目依赖
 └── README.md                       # 项目说明、启动方式、接口说明
 ```

@@ -20,6 +20,10 @@ class Settings:
     llm_base_url: str
     llm_model: str
 
+    jwt_secret_key: str
+    jwt_algorithm: str
+    jwt_expire_minutes: int
+
 
 @lru_cache(maxsize=1)
 def load_settings() -> Settings:
@@ -27,26 +31,40 @@ def load_settings() -> Settings:
 
     load_dotenv()
 
-    api_key = os.getenv("LLM_API_KEY", "").strip()
-    base_url = os.getenv("LLM_BASE_URL", "").strip()
-    model = os.getenv("LLM_MODEL", "").strip()
+    jwt_expire_minutes_text = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60").strip()
+
+    try:
+        jwt_expire_minutes = int(jwt_expire_minutes_text)
+    except ValueError as error:
+        raise ConfigError("JWT_EXPIRE_MINUTES 必须是整数") from error
+
+    settings = Settings(
+        llm_api_key=os.getenv("LLM_API_KEY", "").strip(),
+        llm_base_url=os.getenv("LLM_BASE_URL", "").strip(),
+        llm_model=os.getenv("LLM_MODEL", "").strip(),
+        jwt_secret_key=os.getenv("SECRET_KEY", "").strip(),
+        jwt_algorithm=os.getenv("ALGORITHM", "HS256").strip(),
+        jwt_expire_minutes=jwt_expire_minutes,
+    )
 
     missing_names: list[str] = []
 
-    if not api_key:
+    if not settings.llm_api_key:
         missing_names.append("LLM_API_KEY")
 
-    if not base_url:
+    if not settings.llm_base_url:
         missing_names.append("LLM_BASE_URL")
 
-    if not model:
+    if not settings.llm_model:
         missing_names.append("LLM_MODEL")
+
+    if not settings.jwt_secret_key:
+        missing_names.append("SECRET_KEY")
+
+    if not settings.jwt_algorithm:
+        missing_names.append("ALGORITHM")
 
     if missing_names:
         raise ConfigError(f"缺少环境变量：{', '.join(missing_names)}")
 
-    return Settings(
-        llm_api_key=api_key,
-        llm_base_url=base_url,
-        llm_model=model,
-    )
+    return settings
