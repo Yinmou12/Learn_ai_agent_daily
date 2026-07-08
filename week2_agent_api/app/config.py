@@ -24,6 +24,8 @@ class Settings:
     jwt_algorithm: str
     jwt_expire_minutes: int
 
+    database_url: str
+
 
 @lru_cache(maxsize=1)
 def load_settings() -> Settings:
@@ -45,6 +47,7 @@ def load_settings() -> Settings:
         jwt_secret_key=os.getenv("SECRET_KEY", "").strip(),
         jwt_algorithm=os.getenv("ALGORITHM", "HS256").strip(),
         jwt_expire_minutes=jwt_expire_minutes,
+        database_url=os.getenv("DATABASE_URL", "sqlite:///data/app.db").strip(),
     )
 
     missing_names: list[str] = []
@@ -63,6 +66,9 @@ def load_settings() -> Settings:
 
     if not settings.jwt_algorithm:
         missing_names.append("ALGORITHM")
+
+    if not settings.database_url:
+        missing_names.append("DATABASE_URL")
 
     if missing_names:
         raise ConfigError(f"缺少环境变量：{', '.join(missing_names)}")

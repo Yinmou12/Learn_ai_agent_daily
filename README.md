@@ -20,33 +20,6 @@ python -m pip install requirements.txt
 
 ## 项目结构
 
-```text
-week2_agent_api/
-├── app/
-│   ├── __init__.py
-│   ├── main.py
-│   ├── schemas.py
-│   ├── config.py
-│   ├── exceptions.py
-│   ├── exception_handlers.py
-│   ├── api/
-│   │   ├── __init__.py
-│   │   └── routes/
-│   │       ├── __init__.py
-│   │       ├── chat.py
-│   │       ├── health.py
-│   │       └── version.py
-│   ├── clients/
-│   │   ├── __init__.py
-│   │   └── llm_client.py
-│   ├── services/
-│   │   ├── __init__.py
-│   │   └── chat_service.py
-│   └── utils/
-│       ├── __init__.py
-│       └── response.py
-```
-
 ```
 week2_agent_api/
 ├── app/
@@ -114,6 +87,63 @@ utils 是通用工具
 
 这样拆分的好处是职责清晰：路由层不关心大模型请求细节，服务层不关心 HTTP 路径，客户端层不关心业务接口怎么返回。后续如果要扩展简历解析、岗位匹配、面试题生成，只需要新增对应的 service 和 route，不需要把所有逻辑堆在 `main.py` 里。
 ```
+
+
+
+## 数据库说明
+
+本项目当前使用 SQLite 作为本地开发数据库。
+
+数据库连接地址配置在 `.env` 中：
+
+```text
+DATABASE_URL=sqlite:///data/app.db
+```
+
+启动 FastAPI 应用时，程序会调用 `init_db()` 自动创建数据库表：
+
+```
+Base.metadata.create_all(bind=engine)
+```
+
+如果本地没有数据库文件，启动后会自动生成：
+
+```
+data/app.db
+```
+
+### SQLite 文件位置
+
+默认数据库文件路径：
+
+```
+week2_agent_api/data/app.db
+```
+
+`data/app.db` 是本地运行数据，不建议提交到 Git。
+
+建议在 `.gitignore` 中加入：
+
+```
+data/app.db
+*.db
+```
+
+如果需要重置本地数据，可以停止服务后删除：
+
+```
+Remove-Item data\app.db
+```
+
+然后重新启动服务：
+
+```
+uvicorn app.main:app --reload
+```
+
+程序会重新创建空数据库和数据表。
+
+
 
 
 

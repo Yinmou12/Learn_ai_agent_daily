@@ -134,3 +134,40 @@ class UserProfile(BaseModel):
 
     username: str = Field(description="用户名")
     display_name: str = Field(description="展示名称")
+
+
+class UserCreate(BaseModel):
+    """
+    注册请求体
+    """
+
+    username: str = Field(
+        min_length=3,
+        max_length=50,
+        description=f"用户名，长度 3 到 50",
+    )
+
+    password: str = Field(
+        min_length=6,
+        max_length=100,
+        description=f"密码，长度至少 6",
+    )
+
+    display_name: str = Field(
+        min_length=1,
+        max_length=100,
+        description=f"展示名称",
+    )
+
+    @field_validator("username")
+    @classmethod
+    def validation_username_not_blank(cls, value: str) -> str:
+        """
+        校验 username 不能只是空格。
+        """
+
+        username = value.strip()
+        if not username:
+            raise ValueError("username 不能为空")
+
+        return username
