@@ -72,6 +72,7 @@ api/routes 是接口入口
 services 是业务处理
 clients 是外部服务调用
 utils 是通用工具
+tests 是测试文件
 ```
 
 
@@ -145,14 +146,18 @@ uvicorn app.main:app --reload
 
 
 
-
-
 ### .env
 
 ```txt
 LLM_API_KEY=你的 API Key
 LLM_BASE_URL=https://你的大模型服务地址/v1
 LLM_MODEL=你的模型名
+
+SECRET_KEY = "dev-secret-key-change-me"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
+
+DATABASE_URL=sqlite:///data/app.db
 ```
 
 ## 运行方式

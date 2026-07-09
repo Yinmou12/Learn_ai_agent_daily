@@ -1,3 +1,9 @@
+"""
+定义响应结构
+
+"""
+
+from datetime import datetime
 from typing import Any
 from pydantic import BaseModel, Field, field_validator
 
@@ -171,3 +177,21 @@ class UserCreate(BaseModel):
             raise ValueError("username 不能为空")
 
         return username
+
+
+class UserPublic(BaseModel):
+    """对外返回的用户公开信息"""
+
+    id: int = Field(description="用户 ID")
+    username: str = Field(description="用户名")
+    display_name: str = Field(description="展示名称")
+    created_at: datetime = Field(description="创建时间")
+
+
+class UserListData(BaseModel):
+    """用户列表分页数据"""
+
+    items: list[UserPublic] = Field(description="当前页用户列表")
+    total: int = Field(description="总用户数")
+    page: int = Field(description="当前页码")
+    page_size: int = Field(description="每页用户数")

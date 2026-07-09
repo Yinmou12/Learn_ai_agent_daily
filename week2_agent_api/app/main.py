@@ -7,8 +7,13 @@ from app.api.routes.health import router as health_router
 from app.api.routes.users import router as users_router
 from app.api.routes.version import router as version_router
 from app.db.session import init_db
-from app.exception_handlers import app_error_handler, auth_error_handler
-from app.exceptions import AppError, AuthError
+from app.exception_handlers import (
+    app_error_handler,
+    auth_error_handler,
+    not_found_error_handler,
+    parameter_error_handler,
+)
+from app.exceptions import AppError, AuthError, NotFoundError, ParameterError
 
 
 def create_app() -> FastAPI:
@@ -28,6 +33,8 @@ def create_app() -> FastAPI:
 
     app.add_exception_handler(AppError, app_error_handler)
     app.add_exception_handler(AuthError, auth_error_handler)
+    app.add_exception_handler(NotFoundError, not_found_error_handler)
+    app.add_exception_handler(ParameterError, parameter_error_handler)
 
     app.include_router(auth_router)
     app.include_router(users_router)
