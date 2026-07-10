@@ -1,44 +1,64 @@
-def triangles():
-    L = [1]
-    while True:
-        yield L
-        L = [1] + [L[i] + L[i + 1] for i in range(len(L) - 1)] + [1]
+from typing import Any
+
+data_aug_result = {
+    "Baseline": [0.7070, 0.6180, 0.4560, 0.5003, 0.9011, 0.7132],
+    "AST": [0.7630, 0.7249, 0.7632, 0.7426, 0.7631, 0.8551],
+}
 
 
-# 期待输出:
-# [1]
-# [1, 1]
-# [1, 2, 1]
-# [1, 3, 3, 1]
-# [1, 4, 6, 4, 1]
-# [1, 5, 10, 10, 5, 1]
-# [1, 6, 15, 20, 15, 6, 1]
-# [1, 7, 21, 35, 35, 21, 7, 1]
-# [1, 8, 28, 56, 70, 56, 28, 8, 1]
-# [1, 9, 36, 84, 126, 126, 84, 36, 9, 1]
-n = 0
-results = []
-for t in triangles():
-    results.append(t)
-    n = n + 1
-    if n == 10:
-        break
+def calculate_boost_ratio(
+    result: dict[str, list[float]],
+    cal_method_name: list[str] = None,
+) -> dict[str, list[float] | None]:
+    if result is None:
+        return None
 
-for t in results:
-    print(t)
+    final_metric_result = result.get("AST")
+    if (
+        final_metric_result is None
+        or (isinstance(final_metric_result, list) is False)
+        or (len(final_metric_result) != 6)
+    ):
+        return None
 
-if results == [
-    [1],
-    [1, 1],
-    [1, 2, 1],
-    [1, 3, 3, 1],
-    [1, 4, 6, 4, 1],
-    [1, 5, 10, 10, 5, 1],
-    [1, 6, 15, 20, 15, 6, 1],
-    [1, 7, 21, 35, 35, 21, 7, 1],
-    [1, 8, 28, 56, 70, 56, 28, 8, 1],
-    [1, 9, 36, 84, 126, 126, 84, 36, 9, 1],
-]:
-    print("测试通过!")
-else:
-    print("测试失败!")
+    if cal_method_name is None:
+        cal_method_name = ["Baseline"]
+
+    final_metric_result = result.get("AST")
+    boost_ratio: dict[str, list[float]] = {}
+    for method_name in cal_method_name:
+        current_metric_result = result.get(method_name)
+        if current_metric_result is None:
+            print(f"{method_name} 指标缺失")
+            continue
+
+        if len(current_metric_result) != 6:
+            print(f"{method_name} 指标长度错误")
+            continue
+
+        ratio_list = []
+        for i in range(6):
+            ratio_list.append(
+                (
+                    (final_metric_result[i] - current_metric_result[i])
+                    / current_metric_result[i]
+                )
+                * 100
+            )
+
+        boost_ratio[f"AST--{method_name}"] = ratio_list
+
+    return boost_ratio
+
+
+def main():
+    result = calculate_boost_ratio(data_aug_result)
+    print(result)
+
+
+if __name__ == "__main__":
+    # main()
+    temp_list = [0.6721, 0.7049, 0.7377]
+    result = [(0.7705 - value) / value * 100 for value in temp_list]
+    print(result)
+    pass

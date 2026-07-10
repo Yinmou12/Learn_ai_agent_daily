@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
@@ -9,6 +11,8 @@ from app.exceptions import (
 )
 from app.utils.response import make_error_response
 
+error_logger = logging.getLogger("app.error")
+
 
 async def app_error_handler(request: Request, error: AppError) -> JSONResponse:
     """
@@ -17,6 +21,13 @@ async def app_error_handler(request: Request, error: AppError) -> JSONResponse:
     只要业务代码中 raise AppError 或它的子类，
     FastAPI 就会自动调用这个函数构造错误响应。
     """
+
+    error_logger.warning(
+        "app_error path=%s error=%s message=%s",
+        request.url.path,
+        error.__class__.__name__,
+        str(error),
+    )
 
     response = make_error_response(
         code=error.__class__.__name__,
@@ -33,6 +44,14 @@ async def auth_error_handler(request: Request, error: AuthError) -> JSONResponse
     """
     统一处理认证异常
     """
+
+    error_logger.warning(
+        "app_error path=%s error=%s message=%s",
+        request.url.path,
+        error.__class__.__name__,
+        str(error),
+    )
+
     response = make_error_response(
         code=error.__class__.__name__,
         message=str(error),
@@ -50,6 +69,14 @@ async def not_found_error_handler(
     """
     统一处理资源不存在异常
     """
+
+    error_logger.warning(
+        "app_error path=%s error=%s message=%s",
+        request.url.path,
+        error.__class__.__name__,
+        str(error),
+    )
+
     response = make_error_response(
         code=error.__class__.__name__,
         message=str(error),
@@ -64,6 +91,13 @@ async def parameter_error_handler(
     """
     统一处理用户传参错误异常
     """
+
+    error_logger.warning(
+        "app_error path=%s error=%s message=%s",
+        request.url.path,
+        error.__class__.__name__,
+        str(error),
+    )
 
     response = make_error_response(
         code=error.__class__.__name__,

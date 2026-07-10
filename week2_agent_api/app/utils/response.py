@@ -1,3 +1,4 @@
+from app.core.request_context import get_request_id
 from app.schemas import ApiResponse, ErrorDetail
 
 
@@ -8,6 +9,7 @@ def make_success_response(data: object) -> ApiResponse:
         success=True,
         data=data,
         error=None,
+        request_id=get_request_id(),
     )
 
 
@@ -21,4 +23,5 @@ def make_error_response(code: str, message: str) -> ApiResponse:
             code=code,
             message=message,
         ),
+        request_id=get_request_id(),
     )

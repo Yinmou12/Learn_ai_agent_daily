@@ -26,6 +26,8 @@ class Settings:
 
     database_url: str
 
+    log_level: str
+
 
 @lru_cache(maxsize=1)
 def load_settings() -> Settings:
@@ -40,6 +42,11 @@ def load_settings() -> Settings:
     except ValueError as error:
         raise ConfigError("JWT_EXPIRE_MINUTES 必须是整数") from error
 
+    log_level = os.getenv("LOG_LEVEL", "INFO").strip().upper()
+    allowed_log_levels = {"DEBUG", "INFO", "WARNING", "ERROR"}
+    if log_level not in allowed_log_levels:
+        raise ConfigError("LOG_LEVLL 只能是 DEBUG、INFO、、WARNING、ERROR")
+
     settings = Settings(
         llm_api_key=os.getenv("LLM_API_KEY", "").strip(),
         llm_base_url=os.getenv("LLM_BASE_URL", "").strip(),
@@ -48,6 +55,7 @@ def load_settings() -> Settings:
         jwt_algorithm=os.getenv("ALGORITHM", "HS256").strip(),
         jwt_expire_minutes=jwt_expire_minutes,
         database_url=os.getenv("DATABASE_URL", "sqlite:///data/app.db").strip(),
+        log_level=log_level,
     )
 
     missing_names: list[str] = []

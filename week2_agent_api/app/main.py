@@ -6,6 +6,7 @@ from app.api.routes.debug import router as debug_router
 from app.api.routes.health import router as health_router
 from app.api.routes.users import router as users_router
 from app.api.routes.version import router as version_router
+from app.core.logging_config import setup_logging
 from app.db.session import init_db
 from app.exception_handlers import (
     app_error_handler,
@@ -14,6 +15,7 @@ from app.exception_handlers import (
     parameter_error_handler,
 )
 from app.exceptions import AppError, AuthError, NotFoundError, ParameterError
+from app.middlewares.request_log import RequestLogMiddleware
 
 
 def create_app() -> FastAPI:
@@ -23,11 +25,15 @@ def create_app() -> FastAPI:
     这样 main.py 会更像真实项目的启动入口。
     """
 
+    setup_logging()
+
     app = FastAPI(
         title="Agent Backend API",
         description="Week2 Agent 后端服务骨架",
-        version="0.4.0",
+        version="0.5.0",
     )
+
+    app.add_middleware(RequestLogMiddleware)
 
     init_db()
 
