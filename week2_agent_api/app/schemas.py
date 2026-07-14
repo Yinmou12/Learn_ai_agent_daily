@@ -254,3 +254,38 @@ class ResumeRecordPublic(BaseModel):
     raw_text: str = Field(description="原始文本")
     created_at: datetime = Field(description="创建时间")
     updated_at: datetime = Field(description="更新时间")
+
+
+class JobMatchRequest(BaseModel):
+    """
+    岗位匹配请求体
+    """
+
+    jd_text: str = Field(
+        min_length=1,
+        max_length=500,
+        description="岗位 JD 文本",
+    )
+
+    @field_validator("jd_text")
+    @classmethod
+    def validate_jd_text_not_blank(cls, value: str) -> str:
+        jd_text = value.strip()
+
+        if not jd_text:
+            raise ValueError("jd_text 不能为空")
+
+        return jd_text
+
+
+class JobMatchResult(BaseModel):
+    """
+    岗位匹配结果
+    """
+
+    resume_id: int = Field(description="简历记录 ID")
+    score: int = Field(description="匹配分数，范围 0 到 100")
+    match_level: str = Field(descroption="匹配程度")
+    matched_skills: list[str] = Field(description="JD 中命中的技能")
+    missing_skills: list[str] = Field(description="JD 中没有体现或简历缺少的技能")
+    suggestion: str = Field(description="投递建议")

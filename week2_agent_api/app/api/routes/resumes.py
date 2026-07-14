@@ -3,12 +3,14 @@ from sqlalchemy.orm import Session
 
 from app.dependencies.auth import get_current_user
 from app.db.session import get_db
-from app.schemas import ApiResponse, ResumeParseRequest, UserProfile, ResumeRecordPublic
+from app.schemas import ApiResponse, ResumeParseRequest, UserProfile, JobMatchRequest
 from app.services.resume_service import (
     parse_resume,
     save_resume_profile,
     list_current_user_resume_records,
-    search_resume_record_by_id,
+    get_owned_resume_record,
+    match_resume_with_jd,
+    save_job_match_result,
 )
 from app.utils.response import make_success_response
 
@@ -67,12 +69,48 @@ def get_resumes_record(
 
 @router.get("/{resume_id}", response_model=ApiResponse)
 def get_resume_record_by_id(
+    resume_id: int,
     db: Session = Depends(get_db),
     current_user: UserProfile = Depends(get_current_user),
 ) -> ApiResponse:
 
-    data = search_resume_record_by_id(
+    data = get_owned_resume_record(
         db=db,
         user_id=current_user.id,
+        resume_id=resume_id,
     )
     return make_success_response(data)
+
+
+@router.post("/{resume_id}/match", response_model=ApiResponse)
+def match_resume(
+    resume_id: int,
+    request: JobMatchRequest,
+    db: Session = Depends(get_db),
+    current_user: UserProfile = Depends(get_current_user),
+) -> ApiResponse:
+    """
+    根据当前用户的一条简历记录和岗位 JD 做匹配分析。
+    """
+
+    data = match_resume_with_jd(
+        db=db,
+        user_id=current_user.id,
+        resume_id=resume_id,
+        jd_text=request.jd_text,
+    )
+
+    record = save_job_match_result(
+        db=db,
+        user_id=current_user.id,
+        jd_text=request.jd_text,
+        result_json=data,
+    )
+
+    return make_success_response(
+        {
+            "id": record.id,
+            "result": data.model_dump(),
+            "created_at": record.created_at,
+        }
+    )

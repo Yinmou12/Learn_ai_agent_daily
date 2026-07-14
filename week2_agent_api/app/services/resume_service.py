@@ -8,8 +8,9 @@ from sqlalchemy.orm import Session
 from app.clients.llm_client import call_llm
 from app.config import load_settings
 from app.exceptions import ResumeParseError
+from app.models.job_match_records import JobMatchRecord
 from app.models.resume import ResumeRecord
-from app.schemas import ResumeProfile, ResumeRecordPublic
+from app.schemas import ResumeProfile, ResumeRecordPublic, JobMatchResult
 
 
 def to_resume_record_public(resume_record: ResumeRecord) -> ResumeRecordPublic:
@@ -122,12 +123,15 @@ def list_current_user_resume_records(db: Session, user_id) -> list[ResumeRecordP
     return [to_resume_record_public(resume) for resume in resumes]
 
 
-def search_resume_record_by_id(db: Session, user_id: int) -> ResumeRecordPublic:
+def get_owned_resume_record(
+    db: Session, user_id: int, resume_id: int
+) -> ResumeRecordPublic:
     if not user_id:
         raise ValueError("user_id 和 resume_id 不能都为空")
 
     statement = select(ResumeRecord).where(
         ResumeRecord.user_id == user_id,
+        ResumeRecord.id == resume_id,
     )
 
     record = db.scalar(statement)
@@ -135,4 +139,103 @@ def search_resume_record_by_id(db: Session, user_id: int) -> ResumeRecordPublic:
     if record is None:
         raise ValueError("简历记录不存在")
 
-    return to_resume_record_public(record)
+    return record
+
+
+def load_resume_profile(record: ResumeRecord) -> ResumeProfile:
+    """
+    把数据库里的 profile_json 还原成 ResumeProfile
+
+    数据库存的是 JSON 字符串
+    业务代码更适合使用 Pydantic 对象
+    """
+
+    try:
+        data = json.loads(record.profile_json)
+    except json.JSONDecodeError as error:
+        raise ResumeParseError("数据库中的简历结构化结果不是合法 JSON") from error
+
+    return ResumeProfile.model_validate(data)
+
+
+def match_resume_with_jd(
+    db: Session,
+    user_id: int,
+    resume_id: int,
+    jd_text: str,
+) -> JobMatchResult:
+    """
+    用规则匹配方式计算简历和 JD 的匹配度
+
+    第一版不调用大模型，先保证结果稳定、可测试
+    """
+
+    record = get_owned_resume_record(
+        db=db,
+        user_id=user_id,
+        resume_id=resume_id,
+    )
+
+    profile = load_resume_profile(record)
+
+    jd_text_lower = jd_text.lower()
+
+    matched_skills: list[str] = []
+    missing_skills: list[str] = []
+
+    for skill in profile.skills:
+        skill_text = skill.strip()
+        if not skill_text:
+            continue
+
+        # 用小写比较
+        if skill_text.lower() in jd_text_lower:
+            matched_skills.append(skill_text)
+        else:
+            missing_skills.append(skill_text)
+
+    if profile.skills:
+        score = int(len(matched_skills) / len(profile.skills) * 100)
+    else:
+        score = 0
+
+    if score >= 80:
+        suggestion = "匹配度较高，可以优先投递，并重点准备项目细节。"
+        match_level = "high"
+    elif score >= 50:
+        suggestion = "匹配度中等，建议补充 JD 中高频出现但简历未体现的技能。"
+        match_level = "medium"
+    else:
+        suggestion = "匹配度较低，建议先调整简历方向或选择更贴近当前技能栈的岗位。"
+        match_level = "low"
+
+    return JobMatchResult(
+        resume_id=resume_id,
+        score=score,
+        match_level=match_level,
+        matched_skills=matched_skills,
+        missing_skills=missing_skills,
+        suggestion=suggestion,
+    )
+
+
+def save_job_match_result(
+    db: Session,
+    user_id: int,
+    jd_text: str,
+    result_json: JobMatchResult,
+) -> JobMatchRecord:
+
+    record = JobMatchRecord(
+        user_id=user_id,
+        resume_id=result_json.resume_id,
+        job_description=jd_text,
+        match_score=result_json.score,
+        result_json=json.dumps(result_json.model_dump(), ensure_ascii=False),
+    )
+
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+
+    return record
