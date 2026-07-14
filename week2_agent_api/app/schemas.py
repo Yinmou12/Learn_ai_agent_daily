@@ -195,3 +195,50 @@ class UserListData(BaseModel):
     total: int = Field(description="总用户数")
     page: int = Field(description="当前页码")
     page_size: int = Field(description="每页用户数")
+
+
+class ResumeParseRequest(BaseModel):
+    """
+    简历解析请求体
+    """
+
+    resume_text: str = Field(
+        min_length=1, max_length=5000, description="用户的简历文本"
+    )
+
+    use_fake: bool = Field(
+        default=True,
+        description="是否使用假解析结果，True 表示不调用真实大模型",
+    )
+
+    @field_validator("resume_text")
+    @classmethod
+    def validate_resume_text_not_blank(cls, value: str) -> str:
+        text = value.strip()
+
+        if not text:
+            raise ValueError("resume_text 不能为空")
+
+        return text
+
+
+class ResumeProfile(BaseModel):
+    """
+    结构化简历画像
+    """
+
+    name: str = Field(description="候选人姓名")
+    skills: list[str] = Field(description="技能列表")
+    years_of_experience: int = Field(default=0, description="工作或项目经验年限")
+    target_roles: list[str] = Field(description="适合投递的岗位方向")
+    summary: str = Field(description="候选人简要总结")
+
+    @field_validator("skills")
+    @classmethod
+    def validate_skills_not_blank(cls, value: list[str]) -> list[str]:
+        cleaned_skills = [skill.strip() for skill in value if skill.strip()]
+
+        if not cleaned_skills:
+            raise ValueError("skills 不能为空")
+
+        return cleaned_skills

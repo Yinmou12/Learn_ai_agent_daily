@@ -20,3 +20,7 @@ class NotFoundError(AppError):
 
 class ParameterError(Exception):
     """请求参数错误。"""
+
+
+class ResumeParseError(AppError):
+    """简历解析失败"""

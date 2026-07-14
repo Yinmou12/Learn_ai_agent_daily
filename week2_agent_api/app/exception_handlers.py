@@ -8,6 +8,7 @@ from app.exceptions import (
     AuthError,
     NotFoundError,
     ParameterError,
+    ResumeParseError,
 )
 from app.utils.response import make_error_response
 
@@ -106,5 +107,31 @@ async def parameter_error_handler(
 
     return JSONResponse(
         status_code=422,
+        content=response.model_dump(),
+    )
+
+
+async def resume_error_handler(
+    request: Request,
+    error: ResumeParseError,
+) -> JSONResponse:
+    """
+    统一处理简历解析错误
+    """
+
+    error_logger.warning(
+        "app_error path=%s error=%s message=%s",
+        request.url.path,
+        error.__class__.__name__,
+        str(error),
+    )
+
+    response = make_error_response(
+        code=error.__class__.__name__,
+        message=str(error),
+    )
+
+    return JSONResponse(
+        status_code=400,
         content=response.model_dump(),
     )

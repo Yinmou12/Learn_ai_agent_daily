@@ -4,6 +4,7 @@ from app.api.routes.auth import router as auth_router
 from app.api.routes.chat import router as chat_router
 from app.api.routes.debug import router as debug_router
 from app.api.routes.health import router as health_router
+from app.api.routes.resumes import router as resumes_router
 from app.api.routes.users import router as users_router
 from app.api.routes.version import router as version_router
 from app.core.logging_config import setup_logging
@@ -13,8 +14,15 @@ from app.exception_handlers import (
     auth_error_handler,
     not_found_error_handler,
     parameter_error_handler,
+    resume_error_handler,
 )
-from app.exceptions import AppError, AuthError, NotFoundError, ParameterError
+from app.exceptions import (
+    AppError,
+    AuthError,
+    NotFoundError,
+    ParameterError,
+    ResumeParseError,
+)
 from app.middlewares.request_log import RequestLogMiddleware
 
 
@@ -41,10 +49,12 @@ def create_app() -> FastAPI:
     app.add_exception_handler(AuthError, auth_error_handler)
     app.add_exception_handler(NotFoundError, not_found_error_handler)
     app.add_exception_handler(ParameterError, parameter_error_handler)
+    app.add_exception_handler(ResumeParseError, resume_error_handler)
 
     app.include_router(auth_router)
     app.include_router(users_router)
     app.include_router(chat_router)
+    app.include_router(resumes_router)
     app.include_router(health_router)
     app.include_router(version_router)
     app.include_router(debug_router)

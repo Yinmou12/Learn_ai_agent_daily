@@ -52,7 +52,7 @@ DATABASE_URL=sqlite:///data/app.db
 
 服务启动时会初始化数据库表。`data/app.db` 是本地数据库文件，不建议提交到 Git。
 
-## 常用接口
+## 接口说明
 
 健康检查：
 
@@ -76,6 +76,21 @@ POST /api/v1/auth/login
 
 ```
 GET /api/v1/users/me
+```
+
+简历解析：
+
+```
+POST /api/v1/resumes/parse
+
+请求头：
+Authorization: Bearer <token>
+
+请求体：
+{
+  "resume_text": "张三，Python 后端开发...",
+  "use_fake": true
+}
 ```
 
 用户分页：
@@ -145,3 +160,14 @@ python -m pip install -r requirements.txt
 uvicorn app.main:app --reload
 python scripts/smoke_check.py
 ```
+
+
+
+
+
+```
+
+```
+
+
+
