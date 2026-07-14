@@ -138,6 +138,7 @@ class UserProfile(BaseModel):
     当前登录用户信息
     """
 
+    id: int = Field(description="用户 ID")
     username: str = Field(description="用户名")
     display_name: str = Field(description="展示名称")
 
@@ -242,3 +243,14 @@ class ResumeProfile(BaseModel):
             raise ValueError("skills 不能为空")
 
         return cleaned_skills
+
+
+class ResumeRecordPublic(BaseModel):
+    """
+    对外返回的简历记录公开信息
+    """
+
+    id: int = Field(description="简历记录 ID")
+    raw_text: str = Field(description="原始文本")
+    created_at: datetime = Field(description="创建时间")
+    updated_at: datetime = Field(description="更新时间")

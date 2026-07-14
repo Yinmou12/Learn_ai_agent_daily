@@ -1,11 +1,24 @@
 import json
 from typing import Any
 
+from sqlalchemy import select, func
+
 from pydantic import ValidationError
+from sqlalchemy.orm import Session
 from app.clients.llm_client import call_llm
 from app.config import load_settings
 from app.exceptions import ResumeParseError
-from app.schemas import ResumeProfile
+from app.models.resume import ResumeRecord
+from app.schemas import ResumeProfile, ResumeRecordPublic
+
+
+def to_resume_record_public(resume_record: ResumeRecord) -> ResumeRecordPublic:
+    return ResumeRecordPublic(
+        id=resume_record.id,
+        raw_text=resume_record.raw_text,
+        created_at=resume_record.created_at,
+        updated_at=resume_record.updated_at,
+    )
 
 
 def build_resume_parse_prompt(resume_text: str) -> str:
@@ -70,3 +83,56 @@ def parse_resume(resume_text: str, use_fake: bool = True) -> ResumeProfile:
     raw_answer = call_llm(settings=settings, user_text=prompt)
 
     return parse_resume_json(raw_answer)
+
+
+def save_resume_profile(
+    db: Session,
+    user_id: int,
+    raw_text: str,
+    profile: ResumeProfile,
+) -> ResumeRecord:
+    if not raw_text:
+        raise ValueError("raw_text 不能为空")
+
+    record = ResumeRecord(
+        user_id=user_id,
+        raw_text=raw_text,
+        # model_dump() 把 Pydantic 对象转成 dict
+        # ensure_ascii=False 保证中文不会变成 Unicode 转义
+        profile_json=json.dumps(profile.model_dump(), ensure_ascii=False),
+    )
+
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+
+    return record
+
+
+def list_current_user_resume_records(db: Session, user_id) -> list[ResumeRecordPublic]:
+
+    statement = (
+        select(ResumeRecord)
+        .where(ResumeRecord.user_id == user_id)
+        .order_by(ResumeRecord.id.desc())
+    )
+
+    resumes = db.scalars(statement).all()
+
+    return [to_resume_record_public(resume) for resume in resumes]
+
+
+def search_resume_record_by_id(db: Session, user_id: int) -> ResumeRecordPublic:
+    if not user_id:
+        raise ValueError("user_id 和 resume_id 不能都为空")
+
+    statement = select(ResumeRecord).where(
+        ResumeRecord.user_id == user_id,
+    )
+
+    record = db.scalar(statement)
+
+    if record is None:
+        raise ValueError("简历记录不存在")
+
+    return to_resume_record_public(record)

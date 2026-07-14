@@ -66,6 +66,7 @@ def create_user(db: Session, user_create: UserCreate) -> UserProfile:
     db.refresh(user)
 
     return UserProfile(
+        id=user.id,
         username=user.username,
         display_name=user.display_name,
     )
@@ -88,6 +89,7 @@ def authenticate_user(db: Session, username: str, password: str) -> UserProfile:
         raise AuthError("密码错误")
 
     return UserProfile(
+        id=user.id,
         username=user.username,
         display_name=user.display_name,
     )
@@ -107,6 +109,7 @@ def get_user_by_username(db: Session, username: str) -> UserProfile:
         raise AuthError("用户不存在")
 
     return UserProfile(
+        id=user.id,
         username=user.username,
         display_name=user.display_name,
     )
@@ -175,6 +178,7 @@ def update_user_display_name(
     db.refresh(user)
 
     return UserProfile(
+        id=user.id,
         username=user.username,
         display_name=user.display_name,
     )
