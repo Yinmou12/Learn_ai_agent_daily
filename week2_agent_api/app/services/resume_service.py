@@ -8,9 +8,15 @@ from sqlalchemy.orm import Session
 from app.clients.llm_client import call_llm
 from app.config import load_settings
 from app.exceptions import ResumeParseError
-from app.models.job_match_records import JobMatchRecord
+from app.models.job_match_records import JobMatchRecord, MatchAnalysisRecord
 from app.models.resume import ResumeRecord
-from app.schemas import ResumeProfile, ResumeRecordPublic, JobMatchResult
+from app.schemas import (
+    ResumeProfile,
+    ResumeRecordPublic,
+    JobMatchResult,
+    JobMatchRecordPublic,
+    JobMatchAnalysis,
+)
 
 
 def to_resume_record_public(resume_record: ResumeRecord) -> ResumeRecordPublic:
@@ -139,7 +145,7 @@ def get_owned_resume_record(
     if record is None:
         raise ValueError("简历记录不存在")
 
-    return record
+    return to_resume_record_public(record)
 
 
 def load_resume_profile(record: ResumeRecord) -> ResumeProfile:
@@ -225,12 +231,16 @@ def save_job_match_result(
     jd_text: str,
     result_json: JobMatchResult,
 ) -> JobMatchRecord:
-
+    """
+    保存岗位匹配结果
+    """
     record = JobMatchRecord(
         user_id=user_id,
         resume_id=result_json.resume_id,
         job_description=jd_text,
         match_score=result_json.score,
+        matched_skills=json.dumps(result_json.matched_skills, ensure_ascii=False),
+        missing_skills=json.dumps(result_json.missing_skills, ensure_ascii=False),
         result_json=json.dumps(result_json.model_dump(), ensure_ascii=False),
     )
 
@@ -239,3 +249,146 @@ def save_job_match_result(
     db.refresh(record)
 
     return record
+
+
+def save_job_match_analysis(
+    db: Session,
+    user_id: int,
+    match_id: int,
+    analysis: JobMatchAnalysis,
+) -> dict[str, Any]:
+
+    record = MatchAnalysisRecord(
+        user_id=user_id,
+        match_id=match_id,
+        analysis_result=json.dumps(analysis.model_dump(), ensure_ascii=False),
+    )
+
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+
+    return {
+        "id": f"{user_id} -- {match_id}",
+        "analysis": analysis.model_dump(),
+    }
+
+
+def get_owend_job_match_record(
+    db: Session,
+    user_id: int,
+    match_id: int,
+) -> JobMatchRecordPublic:
+    statement = select(JobMatchRecord).where(
+        JobMatchRecord.user_id == user_id,
+        JobMatchRecord.resume_id == match_id,
+    )
+    record = db.scalar(statement)
+
+    return JobMatchRecordPublic(
+        profile_json=record.result_json,
+        jd_text=record.job_description,
+        score=record.match_score,
+        matched_skills=json.loads(record.matched_skills),
+        missing_skills=json.loads(record.missing_skills),
+    )
+
+
+def build_job_match_analysis_prompt(raw_text: JobMatchRecordPublic) -> str:
+    """
+    构造岗位匹配分析 Prompt。
+
+    注意：
+    baseline 已经算出了稳定结果；
+    LLM 这里只负责解释、建议和面试准备方向。
+    """
+
+    return f"""
+你是一个 AI 求职辅导助手，请基于简历结构化结果和岗位 JD，生成岗位匹配分析。
+
+要求：
+1. 只返回 JSON，不要返回 Markdown。
+2. 不要添加解释性文字。
+3. JSON 必须包含以下字段：
+   - strengths: 字符串数组，候选人的优势
+   - weaknesses: 字符串数组，候选人的短板
+   - interview_focus: 字符串数组，建议重点准备的面试方向
+   - resume_suggestions: 字符串数组，简历修改建议
+   - final_advice: 字符串，最终投递建议
+4. weaknesses 必须至少包含 1 条；如果没有明显短板，也要写“暂未发现明显短板，但建议继续补充项目细节”。
+
+简历结构化结果：
+{raw_text.profile_json}
+
+岗位 JD：
+{raw_text.jd_text}
+
+规则匹配结果：
+score: {raw_text.score}
+matched_skills: {raw_text.matched_skills}
+missing_skills: {raw_text.missing_skills}
+""".strip()
+
+
+def parse_job_match_analysis(raw_text: str) -> JobMatchAnalysis:
+    """
+    把 LLM 返回的 JSON 文本解析成 JobMatchAnalysis。
+    """
+
+    try:
+        data: dict[str, Any] = json.loads(raw_text)
+    except json.JSONDecodeError as error:
+        raise ResumeParseError("岗位匹配分析返回的内容不是合法 JSON") from error
+
+    try:
+        return JobMatchAnalysis.model_validate(data)
+    except ValidationError as error:
+        raise ResumeParseError(f"岗位匹配分析字段校验失败: {error}") from error
+
+
+def generate_job_match_analysis(
+    prompt: str,
+    use_fake: bool = False,
+) -> JobMatchAnalysis:
+
+    if use_fake:
+        return fake_job_match_analysis()
+
+    if not prompt.strip():
+        raise ValueError("jd_text 不能为空")
+
+    settings = load_settings()
+
+    raw_answer = call_llm(settings=settings, user_text=prompt)
+
+    return parse_job_match_analysis(raw_answer)
+
+
+def fake_job_match_analysis() -> JobMatchAnalysis:
+    """
+    返回固定假数据。
+
+    用途：
+    1. 本地开发时不消耗 LLM API。
+    2. 单元测试时结果稳定。
+    3. 排查接口流程时先绕开大模型不稳定因素。
+    """
+
+    return JobMatchAnalysis(
+        strengths=[
+            "候选人具备 Python 和 FastAPI 项目经验",
+            "简历中体现了后端 API 和数据库相关能力",
+        ],
+        weaknesses=[
+            "岗位 JD 中部分工程化要求还需要进一步补充",
+        ],
+        interview_focus=[
+            "FastAPI 路由、依赖注入和异常处理",
+            "SQLAlchemy 表关系和 Session 提交流程",
+        ],
+        resume_suggestions=[
+            "在简历中补充接口测试和数据库表设计细节",
+            "突出 AI Agent 项目中的业务闭环",
+        ],
+        final_advice="可以投递该岗位，但建议补充项目中的工程化亮点。",
+    )

@@ -3,7 +3,13 @@ from sqlalchemy.orm import Session
 
 from app.dependencies.auth import get_current_user
 from app.db.session import get_db
-from app.schemas import ApiResponse, ResumeParseRequest, UserProfile, JobMatchRequest
+from app.schemas import (
+    ApiResponse,
+    ResumeParseRequest,
+    UserProfile,
+    JobMatchRequest,
+    JobMatchAnalysisRequest,
+)
 from app.services.resume_service import (
     parse_resume,
     save_resume_profile,
@@ -11,6 +17,10 @@ from app.services.resume_service import (
     get_owned_resume_record,
     match_resume_with_jd,
     save_job_match_result,
+    get_owend_job_match_record,
+    build_job_match_analysis_prompt,
+    generate_job_match_analysis,
+    save_job_match_analysis,
 )
 from app.utils.response import make_success_response
 
@@ -112,5 +122,41 @@ def match_resume(
             "id": record.id,
             "result": data.model_dump(),
             "created_at": record.created_at,
+        }
+    )
+
+
+@router.post("/job-matches/{match_id}/analysis", response_model=ApiResponse)
+def analyze_job_match(
+    match_id: int,
+    request: JobMatchAnalysisRequest,
+    db: Session = Depends(get_db),
+    current_user: UserProfile = Depends(get_current_user),
+) -> ApiResponse:
+
+    match_record = get_owend_job_match_record(
+        db=db,
+        user_id=current_user.id,
+        match_id=match_id,
+    )
+
+    prompt = build_job_match_analysis_prompt(match_record)
+
+    analysis = generate_job_match_analysis(
+        prompt,
+        use_fake=request.use_fake,
+    )
+
+    saved_record = save_job_match_analysis(
+        db=db,
+        user_id=current_user.id,
+        match_id=match_id,
+        analysis=analysis,
+    )
+
+    return make_success_response(
+        {
+            "id": saved_record["id"],
+            "analysis": saved_record["analysis"],
         }
     )

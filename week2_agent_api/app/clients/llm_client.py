@@ -55,6 +55,10 @@ def call_llm(settings: Settings, user_text: str) -> str:
         "messages": build_messages(user_text),
     }
 
+    print("LLM url", url)
+    print("LLM model:", settings.llm_model)
+    print("message length:", len(user_text))
+
     try:
         response = httpx.post(url, headers=headers, json=payload, timeout=60.0)
         response.raise_for_status()

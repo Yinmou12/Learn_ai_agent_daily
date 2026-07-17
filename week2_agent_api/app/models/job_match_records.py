@@ -33,6 +33,10 @@ class JobMatchRecord(Base):
 
     match_score: Mapped[int] = mapped_column(Integer, nullable=False)
 
+    matched_skills: Mapped[str] = mapped_column(Text, nullable=False)
+
+    missing_skills: Mapped[str] = mapped_column(Text, nullable=False)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=lambda: datetime.now(timezone.utc),
@@ -40,3 +44,34 @@ class JobMatchRecord(Base):
     )
 
     result_json: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class MatchAnalysisRecord(Base):
+
+    __tablename__ = "match_analysis_records"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        index=True,
+    )
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"),
+        index=True,
+        nullable=False,
+    )
+
+    match_id: Mapped[int] = mapped_column(
+        ForeignKey("job_match_records.id"),
+        index=True,
+        nullable=False,
+    )
+
+    analysis_result: Mapped[str] = mapped_column(Text, nullable=False)
+
+    """ created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    ) """

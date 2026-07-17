@@ -289,3 +289,59 @@ class JobMatchResult(BaseModel):
     matched_skills: list[str] = Field(description="JD 中命中的技能")
     missing_skills: list[str] = Field(description="JD 中没有体现或简历缺少的技能")
     suggestion: str = Field(description="投递建议")
+
+
+class JobMatchRecordPublic(BaseModel):
+    """
+    对外返回的岗位匹配记录公开信息
+    """
+
+    profile_json: str = Field(description="结构化简历信息")
+    jd_text: str = Field(description="岗位 JD 文本")
+    score: int = Field(description="匹配分数，范围 0 到 100")
+    matched_skills: list[str] = Field(description="JD 中命中的技能")
+    missing_skills: list[str] = Field(description="JD 中没有体现或简历缺少的技能")
+
+
+class JobMatchAnalysis(BaseModel):
+    strengths: list[str] = Field(description="候选人与岗位匹配的优势")
+    weaknesses: list[str] = Field(description="候选人与岗位之间的短板")
+    interview_focus: list[str] = Field(description="建议重点准备的面试方向")
+    resume_suggestions: list[str] = Field(description="简历优化建议")
+    final_advice: str = Field(description="最终投递建议")
+
+    @field_validator(
+        "strengths",
+        "weaknesses",
+        "interview_focus",
+        "resume_suggestions",
+    )
+    @classmethod
+    def validate_list_not_empty(cls, value: list[str]) -> list[str]:
+        cleaned = [item.strip() for item in value if item.strip()]
+
+        if not cleaned:
+            raise ValueError("分析列表不能为空")
+
+        return cleaned
+
+    @field_validator("final_advice")
+    @classmethod
+    def validate_final_advice_not_blank(cls, value: str) -> str:
+        text = value.strip()
+
+        if not text:
+            raise ValueError("final_advice 不能为空")
+
+        return text
+
+
+class JobMatchAnalysisRequest(BaseModel):
+    """
+    岗位匹配分析请求体
+    """
+
+    use_fake: bool = Field(
+        default=True,
+        description="是否使用假分析结果，True 表示不调用真实大模型",
+    )
