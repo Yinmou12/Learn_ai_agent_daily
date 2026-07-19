@@ -55,6 +55,11 @@ def init_db() -> None:
 
     Base.metadata.create_all(bind=engine)
 
+    from app.db.seed_questions import seed_interview_questions
+
+    with SessionLocal() as db:
+        seed_interview_questions(db)
+
 
 def get_db() -> Generator[Session, None, None]:
     """

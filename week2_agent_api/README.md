@@ -93,6 +93,33 @@ Authorization: Bearer <token>
 }
 ```
 
+面试题库：
+
+```
+新增面试题：
+
+POST /api/v1/questions
+Authorization: Bearer <token>
+
+{
+  "question": "请解释 FastAPI 中 Depends 的作用。",
+  "reference_answer": "Depends 用于声明依赖注入，让路由函数自动获取数据库连接、当前用户等对象。",
+  "key_points": ["依赖注入", "复用公共逻辑", "常用于认证和数据库 Session"],
+  "difficulty": "medium",
+  "tags": ["FastAPI", "Depends", "后端分层"]
+}
+```
+
+```
+查询面试题：
+
+GET /api/v1/quesrtions
+Authorization: Bearer <token>
+
+tag			按技能标签筛选
+difficulty	可选，用于按难度筛选
+```
+
 用户分页：
 
 ```

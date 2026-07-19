@@ -4,6 +4,7 @@ from app.api.routes.auth import router as auth_router
 from app.api.routes.chat import router as chat_router
 from app.api.routes.debug import router as debug_router
 from app.api.routes.health import router as health_router
+from app.api.routes.questions import router as questios_router
 from app.api.routes.resumes import router as resumes_router
 from app.api.routes.users import router as users_router
 from app.api.routes.version import router as version_router
@@ -55,6 +56,7 @@ def create_app() -> FastAPI:
     app.include_router(users_router)
     app.include_router(chat_router)
     app.include_router(resumes_router)
+    app.include_router(questios_router)
     app.include_router(health_router)
     app.include_router(version_router)
     app.include_router(debug_router)

@@ -345,3 +345,46 @@ class JobMatchAnalysisRequest(BaseModel):
         default=True,
         description="是否使用假分析结果，True 表示不调用真实大模型",
     )
+
+
+class InterviewQuestionCreate(BaseModel):
+
+    question: str = Field(min_length=1, max_length=2000, description="面试题")
+    reference_answer: str = Field(min_length=1, max_length=5000, description="参考答案")
+    key_points: list[str] = Field(description="评分关键点")
+    difficulty: str = Field(description="难度: easy / medium / hard")
+    tags: list[str] = Field(description="技能标签")
+
+    @field_validator("question", "reference_answer", "difficulty")
+    @classmethod
+    def validate_text_not_blank(cls, value: str) -> str:
+        text = value.strip()
+
+        if not text:
+            raise ValueError("文本字段不能为空")
+
+        return text
+
+    @field_validator("key_points", "tags")
+    @classmethod
+    def validate_list_not_empty(cls, value: list[str]) -> list[str]:
+        cleaned = [item.strip() for item in value if item.strip()]
+
+        if not cleaned:
+            raise ValueError("列表字段不能为空")
+
+        return cleaned
+
+
+class InterviewQuestionPublic(BaseModel):
+    """
+    对外返回的面试题公开信息
+    """
+
+    id: int = Field(description="题目 ID")
+    question: str = Field(description="面试题")
+    reference_answer: str = Field(description="参考答案")
+    key_points: list[str] = Field(description="评分关键点")
+    difficulty: str = Field(description="难度: easy / medium / hard")
+    tags: list[str] = Field(description="技能标签")
+    created_at: datetime = Field(description="创建时间")
