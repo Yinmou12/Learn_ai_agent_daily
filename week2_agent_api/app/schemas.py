@@ -4,7 +4,7 @@
 """
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -388,3 +388,76 @@ class InterviewQuestionPublic(BaseModel):
     difficulty: str = Field(description="难度: easy / medium / hard")
     tags: list[str] = Field(description="技能标签")
     created_at: datetime = Field(description="创建时间")
+
+
+class QuestionSearchRequest(BaseModel):
+    """
+    面试题搜索请求体
+    """
+
+    query: str = Field(
+        min_length=1,
+        max_length=500,
+        description="检索关键词",
+        examples=["FastAPI Depends 依赖注入"],
+    )
+
+    tags: list[str] = Field(
+        default_factory=list,
+        description="必须命中的题目标签",
+    )
+
+    difficulty: Literal["easy", "medium", "hard"] | None = Field(
+        default=None,
+        description="难度筛选",
+    )
+
+    top_k: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        description="返回结果数量",
+    )
+
+    min_score: int = Field(
+        default=1,
+        ge=1,
+        le=50,
+        description="最低匹配分数",
+    )
+
+    @field_validator("query")
+    @classmethod
+    def validate_query_not_blank(cls, value: str) -> str:
+        text = value.strip()
+
+        if not text:
+            raise ValueError("检索关键词不能为空")
+
+        return text
+
+    @field_validator("tags")
+    @classmethod
+    def validate_tags_not_empty(cls, value: list[str]) -> list[str]:
+        """清理空标签,并忽略大小写去重"""
+
+        cleaned_Tags: list[str] = []
+        seen_tags: set[str] = set()
+
+        for item in value:
+            tag = item.strip().casefold()
+            normalized_tag = tag.casefold()
+
+            if tag and normalized_tag not in seen_tags:
+                cleaned_Tags.append(tag)
+                seen_tags.add(normalized_tag)
+
+        return cleaned_Tags
+
+
+class QuestionSearchItem(BaseModel):
+    """单条面试题检索结果"""
+
+    score: int = Field(description="关键词相关性分数")
+    matched_terms: list[str] = Field(description="命中的关键词或标签")
+    question: InterviewQuestionPublic = Field(description="面试题信息")

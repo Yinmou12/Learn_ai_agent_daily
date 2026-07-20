@@ -98,6 +98,70 @@ class QuestionsRouteTest(unittest.TestCase):
         # 你的项目如果 HTTPBearer 默认未登录返回 403，就用 403
         self.assertEqual(response.status_code, 403)
 
+    def test_search_questions_returns_ranked_results(self) -> None:
+        token = self.register_and_login()
+        headers = {"Authorization": f"Bearer {token}"}
+
+        marker = f"ranktoken{time.time_ns()}"
+        unique_tag = f"SearchTag{time.time_ns()}"
+
+        strong_response = self.client.post(
+            "/api/v1/questions",
+            headers=headers,
+            json={
+                # marker 出现在题目中，可以得到较高分数
+                "question": f"请解释 {marker} 的核心原理",
+                "reference_answer": "这是第一道题的参考答案。",
+                "key_points": ["核心原理", "使用场景"],
+                "difficulty": "medium",
+                "tags": [unique_tag, "FastAPI"],
+            },
+        )
+        self.assertEqual(strong_response.status_code, 200)
+
+        weak_response = self.client.post(
+            "/api/v1/questions",
+            headers=headers,
+            json={
+                "question": "请解释一个普通的后端概念",
+                # marker 只出现在参考答案中，因此得分较低
+                "reference_answer": f"答案中提到了 {marker}",
+                "key_points": ["后端基础"],
+                "difficulty": "medium",
+                "tags": [unique_tag, "Python"],
+            },
+        )
+        self.assertEqual(weak_response.status_code, 200)
+
+        strong_question_id = strong_response.json()["data"]["id"]
+
+        search_response = self.client.post(
+            "/api/v1/questions/search",
+            headers=headers,
+            json={
+                "query": marker,
+                "tags": [unique_tag],
+                "difficulty": "medium",
+                "top_k": 2,
+            },
+        )
+
+        self.assertEqual(search_response.status_code, 200)
+
+        body = search_response.json()
+        self.assertTrue(body["success"])
+        self.assertGreaterEqual(len(body["data"]), 1)
+
+        first_result = body["data"][0]
+
+        # marker 出现在题目中的记录应该排在第一位
+        self.assertEqual(
+            first_result["question"]["id"],
+            strong_question_id,
+        )
+        self.assertGreater(first_result["score"], 0)
+        self.assertIn(marker.casefold(), first_result["matched_terms"])
+
 
 if __name__ == "__main__":
     unittest.main()

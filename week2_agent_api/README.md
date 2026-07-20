@@ -120,6 +120,23 @@ tag			按技能标签筛选
 difficulty	可选，用于按难度筛选
 ```
 
+题库检索
+
+```
+
+POST /api/v1/questions
+Authorization: Bearer <token>
+
+{
+  "query": "FastAPI Depends 依赖注入",
+  "tags": [
+    "fastapi"
+  ],
+  "difficulty": "medium",
+  "top_k": 2
+}
+```
+
 用户分页：
 
 ```
