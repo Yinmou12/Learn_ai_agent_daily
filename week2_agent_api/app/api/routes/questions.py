@@ -8,12 +8,15 @@ from app.schemas import (
     InterviewQuestionCreate,
     QuestionSearchRequest,
     UserProfile,
+    QuestionVectorSearchRequest,
 )
+from app.services.question_search_record_service import save_question_search_record
 from app.services.question_service import create_question, list_questions
 from app.services.question_retrieval_service import (
     search_questions,
     save_question_search_records,
 )
+from app.services.vector_retrieval_service import search_questions_by_vector
 from app.utils.response import make_success_response
 
 router = APIRouter(
@@ -77,3 +80,26 @@ def search_interview_questions(
             "items": data,
         }
     )
+
+
+@router.post("/vector-search", response_model=ApiResponse)
+def vector_search_interview_questions(
+    request: QuestionVectorSearchRequest,
+    db: Session = Depends(get_db),
+    current_user: UserProfile = Depends(get_current_user),
+) -> ApiResponse:
+    """使用本地向量基线检索面试题"""
+
+    data = search_questions_by_vector(
+        db=db,
+        request=request,
+    )
+
+    save_question_search_record(
+        db=db,
+        user_id=current_user.id,
+        request=request,
+        search_results=data,
+    )
+
+    return make_success_response(data=data)

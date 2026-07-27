@@ -445,7 +445,7 @@ class QuestionSearchRequest(BaseModel):
         seen_tags: set[str] = set()
 
         for item in value:
-            tag = item.strip().casefold()
+            tag = item.strip()
             normalized_tag = tag.casefold()
 
             if tag and normalized_tag not in seen_tags:
@@ -461,3 +461,91 @@ class QuestionSearchItem(BaseModel):
     score: int = Field(description="关键词相关性分数")
     matched_terms: list[str] = Field(description="命中的关键词或标签")
     question: InterviewQuestionPublic = Field(description="面试题信息")
+
+
+class QuestionVectorSearchRequest(BaseModel):
+    """
+    面试题向量搜索请求体
+    """
+
+    query: str = Field(
+        min_length=1,
+        max_length=500,
+        description="检索关键词",
+        examples=["FastAPI Depends 依赖注入"],
+    )
+
+    tags: list[str] = Field(
+        default_factory=list,
+        description="必须命中的题目标签",
+    )
+
+    difficulty: Literal["easy", "medium", "hard"] | None = Field(
+        default=None,
+        description="难度筛选",
+    )
+
+    top_k: int = Field(
+        default=1,
+        ge=1,
+        le=10,
+        description="返回结果数量",
+    )
+
+    min_score: int = Field(
+        default=0,
+        ge=0,
+        le=50,
+        description="最低匹配分数",
+    )
+
+    min_similarity: float = Field(
+        default=0.1,
+        ge=0.0,
+        le=1.0,
+        description="最低余弦相似度",
+    )
+
+    @field_validator("query")
+    @classmethod
+    def validate_query_not_blank(cls, value: str) -> str:
+        text = value.strip()
+
+        if not text:
+            raise ValueError("检索关键词不能为空")
+
+        # 只有标点符号的文本无法生成有意义的向量
+        if not any(
+            character.isalnum() or "\u4e00" <= character <= "\u9fff"
+            for character in text
+        ):
+            raise ValueError("query 至少要包含一个中文、英文或数字字符")
+
+        return text
+
+    @field_validator("tags")
+    @classmethod
+    def validate_tags_not_empty(cls, value: list[str]) -> list[str]:
+        cleaned_tags: list[str] = []
+        seen_tags: set[str] = set()
+
+        for item in value:
+            tag = item.strip()
+            normalized_tag = tag.casefold()
+
+            if tag and normalized_tag not in seen_tags:
+                cleaned_tags.append(tag)
+                seen_tags.add(normalized_tag)
+
+        return cleaned_tags
+
+
+class QuestionVectorSearchItem(BaseModel):
+    """一条向量检索结果"""
+
+    similarity: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="余弦相似度",
+    )
+    question: InterviewQuestionPublic = Field(description="匹配的面试题")
