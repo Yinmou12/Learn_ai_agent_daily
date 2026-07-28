@@ -2,13 +2,18 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import get_current_user, require_admin
 from app.schemas import (
     ApiResponse,
     InterviewQuestionCreate,
     QuestionSearchRequest,
     UserProfile,
     QuestionVectorSearchRequest,
+)
+from app.services.chroma_question_service import (
+    search_questions_with_chroma,
+    sync_questions_to_chroma,
+    upsert_question_to_chroma,
 )
 from app.services.question_search_record_service import save_question_search_record
 from app.services.question_service import create_question, list_questions
@@ -36,6 +41,8 @@ def create_intercview_question(
         db=db,
         question_create=request,
     )
+
+    upsert_question_to_chroma(question=data)
 
     return make_success_response(data=data)
 
@@ -103,3 +110,43 @@ def vector_search_interview_questions(
     )
 
     return make_success_response(data=data)
+
+
+@router.post("/index", response_model=ApiResponse)
+def index_interview_questions(
+    db: Session = Depends(get_db),
+    current_user: UserProfile = Depends(require_admin),
+) -> ApiResponse:
+    """把关系数据库题库同步到 Chroma"""
+
+    data = sync_questions_to_chroma(db=db)
+
+    return make_success_response(data=data)
+
+
+@router.post("/chroma-search", response_model=ApiResponse)
+def chroma_search_interview_questions(
+    request: QuestionVectorSearchRequest,
+    db: Session = Depends(get_db),
+    current_user: UserProfile = Depends(get_current_user),
+) -> ApiResponse:
+    """使用真实 Embedding 和 Chroma 检索题目"""
+
+    data = search_questions_with_chroma(
+        db=db,
+        request=request,
+    )
+
+    record_id = save_question_search_record(
+        db=db,
+        user_id=current_user.id,
+        request=request,
+        search_results=data,
+    )
+
+    return make_success_response(
+        data={
+            "record_id": record_id,
+            "items": data,
+        }
+    )

@@ -69,6 +69,7 @@ def create_user(db: Session, user_create: UserCreate) -> UserProfile:
         id=user.id,
         username=user.username,
         display_name=user.display_name,
+        is_admin=user.is_admin,
     )
 
 
@@ -92,6 +93,7 @@ def authenticate_user(db: Session, username: str, password: str) -> UserProfile:
         id=user.id,
         username=user.username,
         display_name=user.display_name,
+        is_admin=user.is_admin,
     )
 
 
@@ -112,6 +114,7 @@ def get_user_by_username(db: Session, username: str) -> UserProfile:
         id=user.id,
         username=user.username,
         display_name=user.display_name,
+        is_admin=user.is_admin,
     )
 
 
@@ -181,4 +184,5 @@ def update_user_display_name(
         id=user.id,
         username=user.username,
         display_name=user.display_name,
+        is_admin=user.is_admin,
     )

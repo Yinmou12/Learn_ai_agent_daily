@@ -6,3 +6,5 @@ uvicorn
 pydantic
 PyJWT
 sqlalchemy
+chromadb
+sentence-transformers

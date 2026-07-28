@@ -24,3 +24,11 @@ class ParameterError(Exception):
 
 class ResumeParseError(AppError):
     """简历解析失败"""
+
+
+class VectorStoreError(AppError):
+    """向量库初始化、写入或查询失败"""
+
+
+class PermissionDeniedError(AppError):
+    """用户已登录，但没有执行当前操作的权限。"""

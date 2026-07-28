@@ -9,6 +9,8 @@ from app.exceptions import (
     NotFoundError,
     ParameterError,
     ResumeParseError,
+    VectorStoreError,
+    PermissionDeniedError,
 )
 from app.utils.response import make_error_response
 
@@ -133,5 +135,46 @@ async def resume_error_handler(
 
     return JSONResponse(
         status_code=400,
+        content=response.model_dump(),
+    )
+
+
+async def vector_store_error_handler(
+    request: Request,
+    error: VectorStoreError,
+) -> JSONResponse:
+    """
+    统一处理向量存储错误
+    """
+
+    error_logger.warning(
+        "app_error path=%s error=%s message=%s",
+        request.url.path,
+        error.__class__.__name__,
+        str(error),
+    )
+
+    response = make_error_response(
+        code=error.__class__.__name__,
+        message=str(error),
+    )
+
+    return JSONResponse(
+        status_code=503,
+        content=response.model_dump(),
+    )
+
+
+async def permission_denied_error_handler(
+    request: Request,
+    error: PermissionDeniedError,
+) -> JSONResponse:
+    response = make_error_response(
+        code=error.__class__.__name__,
+        message=str(error),
+    )
+
+    return JSONResponse(
+        status_code=403,
         content=response.model_dump(),
     )

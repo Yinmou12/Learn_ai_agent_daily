@@ -141,6 +141,7 @@ class UserProfile(BaseModel):
     id: int = Field(description="用户 ID")
     username: str = Field(description="用户名")
     display_name: str = Field(description="展示名称")
+    is_admin: bool = Field(default=False, description="是否是管理员")
 
 
 class UserCreate(BaseModel):
@@ -490,13 +491,6 @@ class QuestionVectorSearchRequest(BaseModel):
         ge=1,
         le=10,
         description="返回结果数量",
-    )
-
-    min_score: int = Field(
-        default=0,
-        ge=0,
-        le=50,
-        description="最低匹配分数",
     )
 
     min_similarity: float = Field(

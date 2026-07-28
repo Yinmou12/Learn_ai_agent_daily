@@ -16,6 +16,8 @@ from app.exception_handlers import (
     not_found_error_handler,
     parameter_error_handler,
     resume_error_handler,
+    vector_store_error_handler,
+    permission_denied_error_handler,
 )
 from app.exceptions import (
     AppError,
@@ -23,6 +25,8 @@ from app.exceptions import (
     NotFoundError,
     ParameterError,
     ResumeParseError,
+    VectorStoreError,
+    PermissionDeniedError,
 )
 from app.middlewares.request_log import RequestLogMiddleware
 
@@ -50,7 +54,9 @@ def create_app() -> FastAPI:
     app.add_exception_handler(AuthError, auth_error_handler)
     app.add_exception_handler(NotFoundError, not_found_error_handler)
     app.add_exception_handler(ParameterError, parameter_error_handler)
+    app.add_exception_handler(PermissionDeniedError, permission_denied_error_handler)
     app.add_exception_handler(ResumeParseError, resume_error_handler)
+    app.add_exception_handler(VectorStoreError, vector_store_error_handler)
 
     app.include_router(auth_router)
     app.include_router(users_router)

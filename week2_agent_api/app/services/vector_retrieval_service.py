@@ -12,9 +12,9 @@ from app.schemas import (
     QuestionVectorSearchItem,
     QuestionVectorSearchRequest,
 )
-from app.services.question_retrieval_service import to_question_public
+from app.services.question_service import to_question_public
 
-VECTOR_DEIMENSIONS = 256
+VECTOR_DIMENSIONS = 256
 TOKEN_PATTERN = re.compile(
     r"[a-z0-9_+#.-]+|[\u4e00-\u9fff]+",
     re.IGNORECASE,
@@ -57,7 +57,7 @@ def stable_term_index(term: str, dimensions: int) -> int:
 
 def vectorize_text(
     text: str,
-    dimensions: int = VECTOR_DEIMENSIONS,
+    dimensions: int = VECTOR_DIMENSIONS,
 ) -> list[float]:
     """把文本转换成固定维度并完成归一化"""
 
@@ -84,7 +84,7 @@ def vectorize_text(
     return [value / vector_length for value in vector]
 
 
-def consine_similarity(
+def cosine_similarity(
     first: Sequence[float],
     second: Sequence[float],
 ) -> float:
@@ -147,7 +147,7 @@ def search_questions_by_vector(
         document = build_question_document(public_question)
         document_vector = vectorize_text(document)
 
-        similarity = consine_similarity(query_vector, document_vector)
+        similarity = cosine_similarity(query_vector, document_vector)
 
         if similarity < request.min_similarity:
             continue

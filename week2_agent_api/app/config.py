@@ -28,6 +28,10 @@ class Settings:
 
     log_level: str
 
+    chroma_path: str
+    embedding_model: str
+    embedding_cache_folder: str
+
 
 @lru_cache(maxsize=1)
 def load_settings() -> Settings:
@@ -56,6 +60,14 @@ def load_settings() -> Settings:
         jwt_expire_minutes=jwt_expire_minutes,
         database_url=os.getenv("DATABASE_URL", "sqlite:///data/app.db").strip(),
         log_level=log_level,
+        chroma_path=os.getenv("CHROMA_PATH", "data/chroma").strip(),
+        embedding_model=os.getenv(
+            "EMBEDDING_MODEL",
+            "sentence-transformers/" "paraphrase-muyilingual-MiniLM-L12-v2",
+        ).strip(),
+        embedding_cache_folder=os.getenv(
+            "EMBEDDING_CACHE_FOLDER", r"D:\AI\ModelCache\HuggingFace"
+        ).strip(),
     )
 
     missing_names: list[str] = []
