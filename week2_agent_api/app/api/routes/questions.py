@@ -9,6 +9,7 @@ from app.schemas import (
     QuestionSearchRequest,
     UserProfile,
     QuestionVectorSearchRequest,
+    RAGQuestionGenerateRequest,
 )
 from app.services.chroma_question_service import (
     search_questions_with_chroma,
@@ -21,6 +22,7 @@ from app.services.question_retrieval_service import (
     search_questions,
     save_question_search_records,
 )
+from app.services.rag_question_service import generate_rag_question_set
 from app.services.vector_retrieval_service import search_questions_by_vector
 from app.utils.response import make_success_response
 
@@ -148,5 +150,33 @@ def chroma_search_interview_questions(
         data={
             "record_id": record_id,
             "items": data,
+        }
+    )
+
+
+@router.post("/rag-generate", response_model=ApiResponse)
+def generate_rag_interview_questions(
+    request: RAGQuestionGenerateRequest,
+    db: Session = Depends(get_db),
+    current_user: UserProfile = Depends(get_current_user),
+) -> ApiResponse:
+    """根据 Chroma 检索结果生成可追溯面试题。"""
+
+    data = generate_rag_question_set(
+        db=db,
+        request=request,
+    )
+
+    record_id = save_question_search_record(
+        db=db,
+        user_id=current_user.id,
+        request=request,
+        search_results=data.sources,
+    )
+
+    return make_success_response(
+        data={
+            "record_id": record_id,
+            "result": data,
         }
     )

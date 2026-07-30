@@ -32,3 +32,7 @@ class VectorStoreError(AppError):
 
 class PermissionDeniedError(AppError):
     """用户已登录，但没有执行当前操作的权限。"""
+
+
+class RAGGenerationError(AppError):
+    """RAG 检索、生成或结构校验失败。"""

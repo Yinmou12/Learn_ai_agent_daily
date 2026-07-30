@@ -4,8 +4,8 @@
 """
 
 from datetime import datetime
-from typing import Any, Literal
-from pydantic import BaseModel, Field, field_validator
+from typing import Any, Literal, Self
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class ErrorDetail(BaseModel):
@@ -543,3 +543,104 @@ class QuestionVectorSearchItem(BaseModel):
         description="余弦相似度",
     )
     question: InterviewQuestionPublic = Field(description="匹配的面试题")
+
+
+class RAGQuestionGenerateRequest(BaseModel):
+    """RAG 面试题生成请求。"""
+
+    query: str = Field(
+        min_length=1,
+        max_length=500,
+        description="岗位方向、技能或面试重点",
+    )
+    tags: list[str] = Field(
+        default_factory=list,
+        description="题目标签筛选",
+    )
+    difficulty: Literal["easy", "medium", "hard"] | None = None
+    source_top_k: int = Field(
+        default=5,
+        ge=1,
+        le=10,
+        description="最多检索多少条题库来源",
+    )
+    question_count: int = Field(
+        default=3,
+        ge=1,
+        le=5,
+        description="需要生成的题目数量",
+    )
+    min_similarity: float = Field(
+        default=0.2,
+        ge=0.0,
+        le=1.0,
+    )
+    use_fake: bool = Field(
+        default=True,
+        description="是否使用本地假生成结果",
+    )
+
+    @field_validator("query")
+    @classmethod
+    def validate_query(cls, value: str) -> str:
+        query = value.strip()
+
+        if not query:
+            raise ValueError("query 不能为空")
+
+        return query
+
+    @field_validator("tags")
+    @classmethod
+    def clean_tags(cls, value: list[str]) -> list[str]:
+        cleaned_tags: list[str] = []
+        seen: set[str] = set()
+
+        for item in value:
+            tag = item.strip()
+            normalized_tag = tag.casefold()
+
+            if tag and normalized_tag not in seen:
+                cleaned_tags.append(tag)
+                seen.add(normalized_tag)
+
+        return cleaned_tags
+
+    @model_validator(mode="after")
+    def validate_result_count(self) -> Self:
+        # 生成三道题时，至少需要检索三条来源
+        if self.source_top_k < self.question_count:
+            raise ValueError("source_top_k 不能小于 question_count")
+
+        return self
+
+
+class RAGGeneratedQuestion(BaseModel):
+    """LLM 根据题库上下文生成的一道题。"""
+
+    question: str = Field(min_length=1)
+    key_points: list[str] = Field(min_length=1)
+    source_question_ids: list[int] = Field(min_length=1)
+
+
+class RAGQuestionSet(BaseModel):
+    """需要由 LLM 返回的结构。"""
+
+    topic: str = Field(min_length=1)
+    questions: list[RAGGeneratedQuestion] = Field(min_length=1)
+
+
+class RAGSource(BaseModel):
+    """对外公开的检索来源。"""
+
+    question_id: int
+    question: str
+    similarity: float
+
+
+class RAGQuestionGenerationResult(BaseModel):
+    """完整 RAG 出题结果。"""
+
+    topic: str
+    questions: list[RAGGeneratedQuestion]
+    sources: list[RAGSource]

@@ -169,10 +169,10 @@ def search_questions_with_chroma(
 
         question = to_question_public(question_model)
         question_tags = {tag.casefold() for tag in question.tags}
-
+        
         if not required_tags.issubset(question_tags):
             continue
-
+        
         # Collection 使用 cosine 空间时:
         # distance = 1 - cosine_similarity
         similarity = max(0.0, min(1.0, 1.0 - float(distance)))

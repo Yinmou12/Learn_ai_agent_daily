@@ -63,7 +63,7 @@ def load_settings() -> Settings:
         chroma_path=os.getenv("CHROMA_PATH", "data/chroma").strip(),
         embedding_model=os.getenv(
             "EMBEDDING_MODEL",
-            "sentence-transformers/" "paraphrase-muyilingual-MiniLM-L12-v2",
+            "sentence-transformers/" "paraphrase-multilingual-MiniLM-L12-v2",
         ).strip(),
         embedding_cache_folder=os.getenv(
             "EMBEDDING_CACHE_FOLDER", r"D:\AI\ModelCache\HuggingFace"
